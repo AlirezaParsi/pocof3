@@ -54,7 +54,6 @@ jobs:
         cd workspace
         echo "workspace-folder=$(pwd)" >> $GITHUB_OUTPUT
         echo "start_time=$(date +%s)" >> $GITHUB_OUTPUT
-        echo "kernelsu=${{ fromJSON('["No", "Yes"]')[fromJSON(github.event.inputs.ENABLE_KERNELSU)] }}" >> $GITHUB_OUTPUT
         echo "build_title=${{ github.event.inputs.BUILD_TITLE || github.event.inputs.CODENAME }}" >> $GITHUB_OUTPUT
       id: workspace
 
