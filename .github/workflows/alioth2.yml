@@ -27,7 +27,8 @@ on:
         default: 'main'
         required: false
       SECOND_ANYKERNEL_URL:
-        description: 'https://github.com/AlirezaParsi/hyperf3'
+        description: 'Secound AnyKernel Url (leave blank if you dont want AnyKernel)'
+         default: 'https://github.com/AlirezaParsi/hyperf3'
         required: false
       SECOND_ANYKERNEL_BRANCH:
         description: 'Second AnyKernel Branch (defaults to codename)'
