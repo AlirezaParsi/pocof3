@@ -1,3 +1,4 @@
+git submodule init && git submodule update
 export ARCH=arm64
 export SUBARCH=ARM64
 export KBUILD_BUILD_USER="aliza"
