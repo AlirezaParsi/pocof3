@@ -1,4 +1,4 @@
-name: Kernel Build (apolo) - clang-r536225
+name: Kernel Build (apolo) - clang-r536225 SUSFS + KSU NEXT
 
 on:
   workflow_dispatch:
