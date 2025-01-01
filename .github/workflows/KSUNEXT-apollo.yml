@@ -1,4 +1,4 @@
-name: Kernel Build (apolo) - clang-r536225 KSU NEXT ONLY
+name: Kernel Build (apolo) - clang-r536225 KSUNEXT ONLY
 
 on:
   workflow_dispatch:
