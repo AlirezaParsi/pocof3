@@ -1,6 +1,7 @@
-name: Kernel Build (alioth) - clang-r536225 KSUNEXT ONLY
+name: Kernel Build (alioth) - clang-r547379 KSUNEXT ONLY
 
 on:
+  pull_request:
   workflow_dispatch:
     inputs:
       BUILD_TITLE:
@@ -42,7 +43,7 @@ on:
 jobs:
   build:
     if: github.event.repository.owner.id == github.event.sender.id
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
@@ -68,8 +69,8 @@ jobs:
 
     - name: Prepare the build environment
       run: |
-        sudo apt install flex && sudo apt install libncurses5
-        wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r536225.tar.gz -O clang.tar.gz
+        sudo apt install flex && sudo apt install libncurses6
+        wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz -O clang.tar.gz
         mkdir clang
         tar -xf clang.tar.gz -C clang
         echo "tools-folder=$(pwd)" >> $GITHUB_OUTPUT
@@ -98,7 +99,6 @@ jobs:
 
     - name: AnyKernel3
       if: ${{ success() && github.event.inputs.ANYKERNEL_URL != '' }}
-      continue-on-error: true
       run: |
         if [[ -z "${{ github.event.inputs.ANYKERNEL_BRANCH }}" ]]; then
           anykernel_branch=${{ github.event.inputs.CODENAME }}
@@ -119,7 +119,6 @@ jobs:
 
     - name: Second AnyKernel3
       if: ${{ success() && github.event.inputs.SECOND_ANYKERNEL_URL != '' }}
-      continue-on-error: true
       run: |
         if [[ -z "${{ github.event.inputs.SECOND_ANYKERNEL_BRANCH }}" ]]; then
           second_anykernel_branch=${{ github.event.inputs.CODENAME }}
@@ -144,7 +143,7 @@ jobs:
 
     - name: Upload to Release
       if: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' }}
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: |
           ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}
@@ -174,7 +173,6 @@ jobs:
           ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/AnyKernel3/
           !${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/AnyKernel3/.git
           !${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/AnyKernel3/.github
-      continue-on-error: true
 
     - uses: actions/upload-artifact@v4
       if: ${{ success() && github.event.inputs.SECOND_ANYKERNEL_URL != '' && github.event.inputs.UPLOAD_TO_RELEASE != 'true' }}
@@ -184,4 +182,3 @@ jobs:
           ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/SecondAnyKernel/
           !${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/SecondAnyKernel/.git
           !${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/SecondAnyKernel/.github
-      continue-on-error: true
