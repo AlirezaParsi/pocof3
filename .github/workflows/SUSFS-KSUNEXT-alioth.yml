@@ -1,4 +1,4 @@
-name: Kernel Build (alioth) - clang-r547379 SUSFS + KSU NEXT
+name: Kernel Build (alioth) - clang-r547379 KSUNEXT ONLY
 
 on:
   pull_request:
@@ -28,7 +28,7 @@ on:
         default: 'main'
         required: false
       SECOND_ANYKERNEL_URL:
-        description: 'Secound AnyKernel Url (leave blank if you dont want AnyKernel)'
+        description: 'Second AnyKernel Url (leave blank if you dont want AnyKernel)'
         default: 'https://github.com/AlirezaParsi/hyperf3'
         required: false
       SECOND_ANYKERNEL_BRANCH:
@@ -47,7 +47,7 @@ jobs:
     permissions:
       contents: write
     steps:
-    
+
     - name: Display User Inputs
       run: |
         echo "::group::User Environment Variables"
@@ -83,7 +83,7 @@ jobs:
         echo "kernel-folder=$(pwd)/kernel_tree" >> $GITHUB_OUTPUT
       working-directory: ${{ steps.workspace.outputs.workspace-folder }}
       id: kernel
-      
+
     - name: Building kernel
       run: |
         git submodule init && git submodule update
@@ -106,8 +106,17 @@ jobs:
           anykernel_branch=${{ github.event.inputs.ANYKERNEL_BRANCH }}
         fi
         git clone --recursive --depth=1 ${{ github.event.inputs.ANYKERNEL_URL }} -b $anykernel_branch AnyKernel3
+        # Check if Image.gz exists, then copy it to AnyKernel3 folder
         if [ -e "Image.gz" ]; then
           cp -f Image.gz AnyKernel3
+        fi
+        # Check if dtb.img exists, then rename and copy it to AnyKernel3 folder
+        if [ -e "dtb.img" ]; then
+          mv -f dtb.img AnyKernel3/dtb
+        fi
+        # Check if dtbo.img exists, then copy it to AnyKernel3 folder
+        if [ -e "dtbo.img" ]; then
+          cp -f dtbo.img AnyKernel3
         fi
         name=N0kernel-AOSP-KSUNEXT-SUSFS-${{ github.event.inputs.CODENAME }}.zip
         cd AnyKernel3
@@ -126,8 +135,13 @@ jobs:
           second_anykernel_branch=${{ github.event.inputs.SECOND_ANYKERNEL_BRANCH }}
         fi
         git clone --recursive --depth=1 ${{ github.event.inputs.SECOND_ANYKERNEL_URL }} -b $second_anykernel_branch SecondAnyKernel
+        # Check if Image.gz exists, then copy it to SecondAnyKernel folder
         if [ -e "Image.gz" ]; then
           cp -f Image.gz SecondAnyKernel
+        fi
+        # Check if dtb.img exists, then rename and copy it to SecondAnyKernel folder
+        if [ -e "dtb.img" ]; then
+          mv -f dtb.img SecondAnyKernel/dtb
         fi
         second_name=N0kernel-HYPEROS-KSUNEXT-SUSFS-${{ github.event.inputs.CODENAME }}.zip
         cd SecondAnyKernel
@@ -136,10 +150,6 @@ jobs:
         echo "second_zipname=$second_name" >> $GITHUB_OUTPUT
       working-directory: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/
       id: second_anykernel
-
-    - name: Check the output directory before uploading
-      run: |
-        ls -al ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/
 
     - name: Upload to Release
       if: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' }}
@@ -158,13 +168,21 @@ jobs:
           <b>Action</b>: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        
     - uses: actions/upload-artifact@v4
       if: ${{ success() && github.event.inputs.UPLOAD_TO_RELEASE != 'true' }}
       with:
         name: Image.gz
         path: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/Image.gz
-
+    - uses: actions/upload-artifact@v4
+      if: ${{ success() && github.event.inputs.UPLOAD_TO_RELEASE != 'true' }}
+      with:
+        name: dtb
+        path: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/dtb.img
+    - uses: actions/upload-artifact@v4
+      if: ${{ success() && github.event.inputs.UPLOAD_TO_RELEASE != 'true' }}
+      with:
+        name: dtbo.img
+        path: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/dtbo.img
     - uses: actions/upload-artifact@v4
       if: ${{ success() && github.event.inputs.ANYKERNEL_URL != '' && github.event.inputs.UPLOAD_TO_RELEASE != 'true' }}
       with:
