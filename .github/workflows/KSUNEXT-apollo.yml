@@ -28,7 +28,7 @@ on:
         default: 'main'
         required: false
       SECOND_ANYKERNEL_URL:
-        description: 'Second AnyKernel Url (leave blank if you dont want AnyKernel)'
+        description: 'secound AnyKernel Url (leave blank if you dont want AnyKernel)'
         default: 'https://github.com/AlirezaParsi/apollohyper'
         required: false
       SECOND_ANYKERNEL_BRANCH:
