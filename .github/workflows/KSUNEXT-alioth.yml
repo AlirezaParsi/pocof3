@@ -143,10 +143,6 @@ jobs:
         if [ -e "dtb.img" ]; then
           mv -f dtb.img SecondAnyKernel/dtb
         fi
-        # Check if dtbo.img exists, then copy it to SecondAnyKernel folder
-        if [ -e "dtbo.img" ]; then
-          cp -f dtbo.img SecondAnyKernel
-        fi
         second_name=N0kernel-HYPEROS-KSUNEXTONLY-${{ github.event.inputs.CODENAME }}.zip
         cd SecondAnyKernel
         zip -q -r $second_name *
