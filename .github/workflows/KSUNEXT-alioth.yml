@@ -97,49 +97,63 @@ jobs:
       working-directory: ${{ steps.kernel.outputs.kernel-folder }}
       id: build
 
-    - name: AnyKernel3
-      if: ${{ success() && github.event.inputs.ANYKERNEL_URL != '' }}
-      run: |
-        if [[ -z "${{ github.event.inputs.ANYKERNEL_BRANCH }}" ]]; then
-          anykernel_branch=${{ github.event.inputs.CODENAME }}
-        else
-          anykernel_branch=${{ github.event.inputs.ANYKERNEL_BRANCH }}
-        fi
-        git clone --recursive --depth=1 ${{ github.event.inputs.ANYKERNEL_URL }} -b $anykernel_branch AnyKernel3
-        if [ -e "Image.gz" ]; then
-          cp -f Image.gz AnyKernel3
-        fi
-        name=N0kernel-AOSP-KSUNEXTONlY-${{ github.event.inputs.CODENAME }}.zip
-        cd AnyKernel3
-        zip -q -r $name *
-        mv $name ../
-        echo "zipname=$name" >> $GITHUB_OUTPUT
-      working-directory: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/
-      id: anykernel
+ - name: AnyKernel3
+  if: ${{ success() && github.event.inputs.ANYKERNEL_URL != '' }}
+  run: |
+    if [[ -z "${{ github.event.inputs.ANYKERNEL_BRANCH }}" ]]; then
+      anykernel_branch=${{ github.event.inputs.CODENAME }}
+    else
+      anykernel_branch=${{ github.event.inputs.ANYKERNEL_BRANCH }}
+    fi
+    git clone --recursive --depth=1 ${{ github.event.inputs.ANYKERNEL_URL }} -b $anykernel_branch AnyKernel3
+    # Check if Image.gz exists, then copy it to AnyKernel3 folder
+    if [ -e "Image.gz" ]; then
+      cp -f Image.gz AnyKernel3
+    fi
+    # Check if dtb.img exists, then rename and copy it to AnyKernel3 folder
+    if [ -e "dtb.img" ]; then
+      mv -f dtb.img AnyKernel3/dtb
+    fi
+    # Check if dtbo.img exists, then copy it to AnyKernel3 folder
+    if [ -e "dtbo.img" ]; then
+      cp -f dtbo.img AnyKernel3
+    fi
+    name=N0kernel-AOSP-KSUNEXTONlY-${{ github.event.inputs.CODENAME }}.zip
+    cd AnyKernel3
+    zip -q -r $name *
+    mv $name ../
+    echo "zipname=$name" >> $GITHUB_OUTPUT
+  working-directory: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/
+  id: anykernel
 
-    - name: Second AnyKernel3
-      if: ${{ success() && github.event.inputs.SECOND_ANYKERNEL_URL != '' }}
-      run: |
-        if [[ -z "${{ github.event.inputs.SECOND_ANYKERNEL_BRANCH }}" ]]; then
-          second_anykernel_branch=${{ github.event.inputs.CODENAME }}
-        else
-          second_anykernel_branch=${{ github.event.inputs.SECOND_ANYKERNEL_BRANCH }}
-        fi
-        git clone --recursive --depth=1 ${{ github.event.inputs.SECOND_ANYKERNEL_URL }} -b $second_anykernel_branch SecondAnyKernel
-        if [ -e "Image.gz" ]; then
-          cp -f Image.gz SecondAnyKernel
-        fi
-        second_name=N0kernel-HYPEROS-KSUNEXTONLY-${{ github.event.inputs.CODENAME }}.zip
-        cd SecondAnyKernel
-        zip -q -r $second_name *
-        mv $second_name ../
-        echo "second_zipname=$second_name" >> $GITHUB_OUTPUT
-      working-directory: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/
-      id: second_anykernel
-
-    - name: Check the output directory before uploading
-      run: |
-        ls -al ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/
+- name: Second AnyKernel3
+  if: ${{ success() && github.event.inputs.SECOND_ANYKERNEL_URL != '' }}
+  run: |
+    if [[ -z "${{ github.event.inputs.SECOND_ANYKERNEL_BRANCH }}" ]]; then
+      second_anykernel_branch=${{ github.event.inputs.CODENAME }}
+    else
+      second_anykernel_branch=${{ github.event.inputs.SECOND_ANYKERNEL_BRANCH }}
+    fi
+    git clone --recursive --depth=1 ${{ github.event.inputs.SECOND_ANYKERNEL_URL }} -b $second_anykernel_branch SecondAnyKernel
+    # Check if Image.gz exists, then copy it to SecondAnyKernel folder
+    if [ -e "Image.gz" ]; then
+      cp -f Image.gz SecondAnyKernel
+    fi
+    # Check if dtb.img exists, then rename and copy it to SecondAnyKernel folder
+    if [ -e "dtb.img" ]; then
+      mv -f dtb.img SecondAnyKernel/dtb
+    fi
+    # Check if dtbo.img exists, then copy it to SecondAnyKernel folder
+    if [ -e "dtbo.img" ]; then
+      cp -f dtbo.img SecondAnyKernel
+    fi
+    second_name=N0kernel-HYPEROS-KSUNEXTONLY-${{ github.event.inputs.CODENAME }}.zip
+    cd SecondAnyKernel
+    zip -q -r $second_name *
+    mv $second_name ../
+    echo "second_zipname=$second_name" >> $GITHUB_OUTPUT
+  working-directory: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/
+  id: second_anykernel
 
     - name: Upload to Release
       if: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' }}
