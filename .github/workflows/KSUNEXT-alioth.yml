@@ -14,7 +14,7 @@ on:
       KERNEL_TREE_BRANCH:
         description: 'Kernel Tree Branch'
         required: true
-        default: 'ksu-next'
+        default: 'ksunext'
       CODENAME:
         description: 'Phone Codename'
         default: 'alioth'
@@ -86,7 +86,8 @@ jobs:
 
     - name: Building kernel
       run: |
-        git submodule init && git submodule update
+        rm -rf KernelSU-Next
+        curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
         export ARCH=arm64
         export SUBARCH=ARM64
         export KBUILD_BUILD_USER="aliza"
