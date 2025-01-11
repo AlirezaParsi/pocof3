@@ -86,7 +86,7 @@ jobs:
 
     - name: Building kernel
       run: |
-        git submodule init && git submodule update
+        git clone https://github.com/AlirezaParsi/KernelSU-Next -b next
         export ARCH=arm64
         export SUBARCH=ARM64
         export KBUILD_BUILD_USER="aliza"
