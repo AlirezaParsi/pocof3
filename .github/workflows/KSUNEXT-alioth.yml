@@ -14,7 +14,7 @@ on:
       KERNEL_TREE_BRANCH:
         description: 'Kernel Tree Branch'
         required: true
-        default: 'ksunext'
+        default: 'ksu-next'
       CODENAME:
         description: 'Phone Codename'
         default: 'alioth'
