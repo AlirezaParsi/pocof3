@@ -613,7 +613,6 @@ this file is for attribution only of alioth
 	qcom,five-pin-battery;
 	qcom,soc-hi-res;
 	qcom,sun-profile-only;
-	qcom,j3s-batt-profile;
 	qcom,k11a-batt-profile;
 	qcom,soc_decimal_rate = <
 		0  38
