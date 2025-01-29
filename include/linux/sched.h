@@ -1497,7 +1497,7 @@ struct task_struct {
 	ANDROID_KABI_USE(8, u64 susfs_last_fake_mnt_id);
 #else
 	ANDROID_KABI_RESERVE(8);
-
+#endif
 #ifdef CONFIG_ANDROID_SIMPLE_LMK
 	struct task_struct		*simple_lmk_next;
 #endif
