@@ -2035,13 +2035,28 @@ static int map_files_get_link(struct dentry *dentry, struct path *path)
 
 	rc = -ENOENT;
 	vma = find_exact_vma(mm, vm_start, vm_end);
-	if (vma && vma->vm_file) {
+	if (!vma || !vma->vm_file)
+		goto out_up_read;
+
+	// Check for specific conditions and set the appropriate path
+	if (strstr(vma->vm_file->f_path.dentry->d_name.name, "lineage")) {
+		rc = kern_path("/system/framework/framework-res.apk", LOOKUP_FOLLOW, path);
+		if (rc)
+			goto out_up_read;
+	} else if (strstr(vma->vm_file->f_path.dentry->d_name.name, "framework-reslineage_aliothauto_generated_rro_product")) {
+		// Custom path for your specific case
+		rc = kern_path("/data/resource-cache/product@overlay@framework-reslineage_aliothauto_generated_rro_product.apk@idmap", LOOKUP_FOLLOW, path);
+		if (rc)
+			goto out_up_read;
+	} else {
+		// Default case: use the file's path
 		*path = vma->vm_file->f_path;
 		path_get(path);
 		rc = 0;
 	}
-	up_read(&mm->mmap_sem);
 
+out_up_read:
+	up_read(&mm->mmap_sem);
 out_mmput:
 	mmput(mm);
 out:
