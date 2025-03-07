@@ -39,12 +39,16 @@ on:
         description: 'Upload to release'
         type: boolean
         default: false
+      ENABLE_TELEGRAM_NOTIFICATIONS:
+        description: 'Enable Telegram notifications'
+        type: boolean
+        default: true
 
 jobs:
   build:
     if: github.event.repository.owner.id == github.event.sender.id
     runs-on: ubuntu-latest
-    environment: Telegram  # Add the Environment name here
+    environment: Telegram
     permissions:
       contents: write
     steps:
@@ -56,6 +60,8 @@ jobs:
         echo "Codename: ${{ github.event.inputs.CODENAME }}"
         echo "AnyKernel Url: ${{ github.event.inputs.ANYKERNEL_URL }}/tree/${{ github.event.inputs.ANYKERNEL_BRANCH }}"
         echo "Second AnyKernel Url: ${{ github.event.inputs.SECOND_ANYKERNEL_URL }}/tree/${{ github.event.inputs.SECOND_ANYKERNEL_BRANCH }}"
+        echo "Enable Telegram Notifications: ${{ github.event.inputs.ENABLE_TELEGRAM_NOTIFICATIONS }}"
+        echo "Upload to Release: ${{ github.event.inputs.UPLOAD_TO_RELEASE }}"
         echo "::endgroup::"
 
     - name: Debug Secrets
@@ -63,7 +69,14 @@ jobs:
         echo "TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}"
         echo "TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}"
 
+    - name: Generate Build Date
+      id: build_date
+      run: |
+        build_date=$(date +"%Y%m%d")
+        echo "build_date=$build_date" >> $GITHUB_OUTPUT
+
     - name: Notify Build Start
+      if: ${{ github.event.inputs.ENABLE_TELEGRAM_NOTIFICATIONS == 'true' }}
       uses: appleboy/telegram-action@master
       with:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -178,8 +191,8 @@ jobs:
         files: |
           ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}
           ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.second_anykernel.outputs.second_zipname }}
-        name: ${{ github.event.inputs.CODENAME }}-${{ github.run_id }}
-        tag_name: ${{ github.run_id }}
+        name: ${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}
+        tag_name: ${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}
         body: |
           <b>${{ steps.workspace.outputs.build_title }}</b>
           <b>Kernel successfully built!</b>, took ${{ steps.build.outputs.elapsed_time }} seconds.
@@ -188,6 +201,7 @@ jobs:
           <b>Action</b>: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      id: upload_release
 
     - uses: actions/upload-artifact@v4
       if: ${{ success() && github.event.inputs.UPLOAD_TO_RELEASE != 'true' }}
@@ -226,7 +240,7 @@ jobs:
           !${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/SecondAnyKernel/.github
 
     - name: Notify Build Success
-      if: success()
+      if: success() && ${{ github.event.inputs.ENABLE_TELEGRAM_NOTIFICATIONS == 'true' }}
       uses: appleboy/telegram-action@master
       with:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -237,9 +251,10 @@ jobs:
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           ⏱️ Elapsed Time: `${{ steps.build.outputs.elapsed_time }}` seconds
           📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
+          ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && format('📥 Download: [Release Artifacts](https://github.com/{0}/releases/tag/{1})', github.repository, steps.upload_release.outputs.tag_name) || '' }}
 
     - name: Notify Build Failure
-      if: failure()
+      if: failure() && ${{ github.event.inputs.ENABLE_TELEGRAM_NOTIFICATIONS == 'true' }}
       uses: appleboy/telegram-action@master
       with:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -252,7 +267,7 @@ jobs:
           📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
 
     - name: Notify Build Canceled
-      if: cancelled()
+      if: cancelled() && ${{ github.event.inputs.ENABLE_TELEGRAM_NOTIFICATIONS == 'true' }}
       uses: appleboy/telegram-action@master
       with:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
