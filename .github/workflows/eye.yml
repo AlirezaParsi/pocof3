@@ -1,0 +1,27 @@
+name: Cancel Listener
+
+on:
+  workflow_run:
+    workflows: ["Kernel Build (alioth) - SUSFS + KSU NEXT | clang-r547379"]  # Replace with the name of your main workflow
+    types:
+      - completed
+
+jobs:
+  notify_cancellation:
+    if: >
+      github.event.workflow_run.conclusion == 'cancelled' &&
+      github.event.workflow_run.event == 'workflow_dispatch' &&
+      github.event.workflow_run.inputs.ENABLE_TELEGRAM_NOTIFICATIONS == 'true'
+    runs-on: ubuntu-latest
+    environment: Telegram
+    steps:
+      - name: Notify Build Canceled
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          format: markdown
+          message: |
+            🚫 Kernel Build Canceled for `${{ github.event.workflow_run.inputs.CODENAME }}`
+            🔧 [View Workflow Run](${{ github.event.workflow_run.html_url }})
+            📦 Build Title: `${{ github.event.workflow_run.inputs.BUILD_TITLE || github.event.workflow_run.inputs.CODENAME }}`
