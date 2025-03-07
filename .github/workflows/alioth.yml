@@ -1,4 +1,4 @@
-## note: if you are using this code for building your kernel mention my telegram username: @AlirezaParsi on ur credits this is how you can support my work
+# Note: If you are using this code to build your kernel, please mention my Telegram username @AlirezaParsi in your credits. This is how you can support my work.
 name: Kernel Build (alioth) - KSUNEXT ONLY clang-r547379
 
 on:
@@ -137,7 +137,8 @@ jobs:
         if [ -e "dtbo.img" ]; then
           cp -f dtbo.img AnyKernel3
         fi
-        name=N0kernel-AOSP-KSUNEXTONLY-${{ github.event.inputs.CODENAME }}.zip
+        build_date=$(date +"%Y%m%d-%H%M%S")  # Get the build date in YYYYMMDD-HHMMSS format
+        name=N0kernel-AOSP-KSUNEXTONLY-${{ github.event.inputs.CODENAME }}-$build_date.zip
         cd AnyKernel3
         zip -q -r $name *
         mv $name ../
@@ -162,7 +163,8 @@ jobs:
         if [ -e "dtb" ]; then
           cp -f dtb SecondAnyKernel/dtb
         fi
-        second_name=N0kernel-HYPEROS-KSUNEXTONLY-${{ github.event.inputs.CODENAME }}.zip
+        build_date=$(date +"%Y%m%d-%H%M%S")  # Get the build date in YYYYMMDD-HHMMSS format
+        second_name=N0kernel-HYPEROS-KSUNEXTONLY-${{ github.event.inputs.CODENAME }}-$build_date.zip
         cd SecondAnyKernel
         zip -q -r $second_name *
         mv $second_name ../
