@@ -44,6 +44,7 @@ jobs:
   build:
     if: github.event.repository.owner.id == github.event.sender.id
     runs-on: ubuntu-latest
+    environment: Telegram
     permissions:
       contents: write
     steps:
@@ -57,11 +58,16 @@ jobs:
         echo "Second AnyKernel Url: ${{ github.event.inputs.SECOND_ANYKERNEL_URL }}/tree/${{ github.event.inputs.SECOND_ANYKERNEL_BRANCH }}"
         echo "::endgroup::"
 
+    - name: Debug Secrets
+      run: |
+        echo "TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}"
+        echo "TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}"
+
     - name: Notify Build Start
       uses: appleboy/telegram-action@master
       with:
-        to: ${{ secrets.TELEGRAM_CHAT_ID }}
-        token: ${{ secrets.TELEGRAM_TOKEN }}
+        to: ${{ secrets.TELEGRAM_CHAT_ID }}  # Ensure this matches the secret name
+        token: ${{ secrets.TELEGRAM_TOKEN }} # Ensure this matches the secret name
         message: |
           🚀 Kernel Build Started for ${{ github.event.inputs.CODENAME }}
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
