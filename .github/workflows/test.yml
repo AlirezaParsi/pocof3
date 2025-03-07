@@ -86,7 +86,7 @@ jobs:
           🚀 Kernel Build Started for `${{ github.event.inputs.CODENAME }}`
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           📦 Build Title: `${{ github.event.inputs.BUILD_TITLE || github.event.inputs.CODENAME }}`
-          ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && '📤 **Upload to Release:** Enabled' || '📤 **Upload to Release:** Disabled' }}
+          ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && '🚀 **Build Type:** Release Build' || '🛠️ **Build Type:** CI Build' }}
 
     - name: Initialize workspace
       run: |
