@@ -52,19 +52,6 @@ jobs:
     permissions:
       contents: write
     steps:
-      # Cancellation notification at the beginning of the job
-      - name: Notify Build Canceled
-        if: cancelled() && ${{ github.event.inputs.ENABLE_TELEGRAM_NOTIFICATIONS == 'true' }}
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          format: markdown
-          message: |
-            🚫 Kernel Build Canceled for `${{ github.event.inputs.CODENAME }}`
-            🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-            📦 Build Title: `${{ github.event.inputs.BUILD_TITLE || github.event.inputs.CODENAME }}`
-
       - name: Display User Inputs
         run: |
           echo "::group::User Environment Variables"
@@ -273,3 +260,19 @@ jobs:
             🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
             ⏱️ Elapsed Time: `${{ steps.build.outputs.elapsed_time }}` seconds
             📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
+
+      - name: Debug Cancellation
+        if: cancelled()
+        run: echo "Job was cancelled!"
+
+      - name: Notify Build Canceled
+        if: cancelled() && ${{ github.event.inputs.ENABLE_TELEGRAM_NOTIFICATIONS == 'true' }}
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          format: markdown
+          message: |
+            🚫 Kernel Build Canceled for `${{ github.event.inputs.CODENAME }}`
+            🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            📦 Build Title: `${{ github.event.inputs.BUILD_TITLE || github.event.inputs.CODENAME }}`
