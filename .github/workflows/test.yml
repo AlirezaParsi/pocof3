@@ -19,14 +19,30 @@ on:
         description: 'Phone Codename'
         default: 'alioth'
         required: true
-      ANYKERNEL_CONFIG:
-        description: 'AnyKernel Config (format: "ENABLE|URL", e.g., "true|https://github.com/AlirezaParsi/F3aosp")'
-        default: 'true|https://github.com/AlirezaParsi/F3aosp'
-        required: true
-      SECOND_ANYKERNEL_CONFIG:
-        description: 'Second AnyKernel Config (format: "ENABLE|URL", e.g., "true|https://github.com/AlirezaParsi/hyperf3")'
-        default: 'true|https://github.com/AlirezaParsi/hyperf3'
-        required: true
+      ENABLE_ANYKERNEL:
+        description: 'Enable AnyKernel packaging'
+        type: boolean
+        default: true
+      ANYKERNEL_URL:
+        description: 'AnyKernel Url (leave blank if you dont want AnyKernel)'
+        default: 'https://github.com/AlirezaParsi/F3aosp'
+        required: false
+      ANYKERNEL_BRANCH:
+        description: 'AnyKernel Branch (defaults to codename)'
+        default: 'main'
+        required: false
+      ENABLE_SECOND_ANYKERNEL:
+        description: 'Enable Second AnyKernel packaging'
+        type: boolean
+        default: true
+      SECOND_ANYKERNEL_URL:
+        description: 'Second AnyKernel Url (leave blank if you dont want AnyKernel)'
+        default: 'https://github.com/AlirezaParsi/hyperf3'
+        required: false
+      SECOND_ANYKERNEL_BRANCH:
+        description: 'Second AnyKernel Branch (defaults to codename)'
+        default: 'main'
+        required: false
       UPLOAD_TO_RELEASE:
         description: 'Upload to release'
         type: boolean
@@ -50,8 +66,10 @@ jobs:
         echo "Custom Build Title: ${{ github.event.inputs.BUILD_TITLE }}"
         echo "Kernel Tree: ${{ github.event.inputs.KERNEL_TREE }}/tree/${{ github.event.inputs.KERNEL_TREE_BRANCH }}"
         echo "Codename: ${{ github.event.inputs.CODENAME }}"
-        echo "AnyKernel Config: ${{ github.event.inputs.ANYKERNEL_CONFIG }}"
-        echo "Second AnyKernel Config: ${{ github.event.inputs.SECOND_ANYKERNEL_CONFIG }}"
+        echo "Enable AnyKernel: ${{ github.event.inputs.ENABLE_ANYKERNEL }}"
+        echo "AnyKernel Url: ${{ github.event.inputs.ANYKERNEL_URL }}/tree/${{ github.event.inputs.ANYKERNEL_BRANCH }}"
+        echo "Enable Second AnyKernel: ${{ github.event.inputs.ENABLE_SECOND_ANYKERNEL }}"
+        echo "Second AnyKernel Url: ${{ github.event.inputs.SECOND_ANYKERNEL_URL }}/tree/${{ github.event.inputs.SECOND_ANYKERNEL_BRANCH }}"
         echo "Enable Telegram Notifications: ${{ github.event.inputs.ENABLE_TELEGRAM_NOTIFICATIONS }}"
         echo "Upload to Release: ${{ github.event.inputs.UPLOAD_TO_RELEASE }}"
         echo "::endgroup::"
@@ -60,20 +78,6 @@ jobs:
       run: |
         echo "TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}"
         echo "TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}"
-
-    - name: Parse AnyKernel Config
-      id: parse_anykernel
-      run: |
-        IFS='|' read -r enable_anykernel anykernel_url <<< "${{ github.event.inputs.ANYKERNEL_CONFIG }}"
-        echo "enable_anykernel=$enable_anykernel" >> $GITHUB_OUTPUT
-        echo "anykernel_url=$anykernel_url" >> $GITHUB_OUTPUT
-
-    - name: Parse Second AnyKernel Config
-      id: parse_second_anykernel
-      run: |
-        IFS='|' read -r enable_second_anykernel second_anykernel_url <<< "${{ github.event.inputs.SECOND_ANYKERNEL_CONFIG }}"
-        echo "enable_second_anykernel=$enable_second_anykernel" >> $GITHUB_OUTPUT
-        echo "second_anykernel_url=$second_anykernel_url" >> $GITHUB_OUTPUT
 
     - name: Generate Build Date
       id: build_date
@@ -134,10 +138,14 @@ jobs:
       id: build
 
     - name: AnyKernel3
-      if: ${{ success() && steps.parse_anykernel.outputs.enable_anykernel == 'true' && steps.parse_anykernel.outputs.anykernel_url != '' }}
+      if: ${{ success() && github.event.inputs.ENABLE_ANYKERNEL == 'true' && github.event.inputs.ANYKERNEL_URL != '' }}
       run: |
-        anykernel_branch=${{ github.event.inputs.CODENAME }}  # Default to codename
-        git clone --recursive --depth=1 ${{ steps.parse_anykernel.outputs.anykernel_url }} -b $anykernel_branch AnyKernel3
+        if [[ -z "${{ github.event.inputs.ANYKERNEL_BRANCH }}" ]]; then
+          anykernel_branch=${{ github.event.inputs.CODENAME }}
+        else
+          anykernel_branch=${{ github.event.inputs.ANYKERNEL_BRANCH }}
+        fi
+        git clone --recursive --depth=1 ${{ github.event.inputs.ANYKERNEL_URL }} -b $anykernel_branch AnyKernel3
         # Check if Image.gz exists, then copy it to AnyKernel3 folder
         if [ -e "Image.gz" ]; then
           cp -f Image.gz AnyKernel3
@@ -161,10 +169,14 @@ jobs:
       id: anykernel
 
     - name: Second AnyKernel3
-      if: ${{ success() && steps.parse_second_anykernel.outputs.enable_second_anykernel == 'true' && steps.parse_second_anykernel.outputs.second_anykernel_url != '' }}
+      if: ${{ success() && github.event.inputs.ENABLE_SECOND_ANYKERNEL == 'true' && github.event.inputs.SECOND_ANYKERNEL_URL != '' }}
       run: |
-        second_anykernel_branch=${{ github.event.inputs.CODENAME }}  # Default to codename
-        git clone --recursive --depth=1 ${{ steps.parse_second_anykernel.outputs.second_anykernel_url }} -b $second_anykernel_branch SecondAnyKernel
+        if [[ -z "${{ github.event.inputs.SECOND_ANYKERNEL_BRANCH }}" ]]; then
+          second_anykernel_branch=${{ github.event.inputs.CODENAME }}
+        else
+          second_anykernel_branch=${{ github.event.inputs.SECOND_ANYKERNEL_BRANCH }}
+        fi
+        git clone --recursive --depth=1 ${{ github.event.inputs.SECOND_ANYKERNEL_URL }} -b $second_anykernel_branch SecondAnyKernel
         # Check if Image.gz exists, then copy it to SecondAnyKernel folder
         if [ -e "Image.gz" ]; then
           cp -f Image.gz SecondAnyKernel
@@ -220,7 +232,7 @@ jobs:
         path: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/dtbo.img
 
     - uses: actions/upload-artifact@v4
-      if: ${{ success() && steps.parse_anykernel.outputs.enable_anykernel == 'true' && steps.parse_anykernel.outputs.anykernel_url != '' && github.event.inputs.UPLOAD_TO_RELEASE != 'true' }}
+      if: ${{ success() && github.event.inputs.ENABLE_ANYKERNEL == 'true' && github.event.inputs.ANYKERNEL_URL != '' && github.event.inputs.UPLOAD_TO_RELEASE != 'true' }}
       with:
         name: ${{ steps.anykernel.outputs.zipname }}
         path: |
@@ -229,7 +241,7 @@ jobs:
           !${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/AnyKernel3/.github
 
     - uses: actions/upload-artifact@v4
-      if: ${{ success() && steps.parse_second_anykernel.outputs.enable_second_anykernel == 'true' && steps.parse_second_anykernel.outputs.second_anykernel_url != '' && github.event.inputs.UPLOAD_TO_RELEASE != 'true' }}
+      if: ${{ success() && github.event.inputs.ENABLE_SECOND_ANYKERNEL == 'true' && github.event.inputs.SECOND_ANYKERNEL_URL != '' && github.event.inputs.UPLOAD_TO_RELEASE != 'true' }}
       with:
         name: ${{ steps.second_anykernel.outputs.second_zipname }}
         path: |
