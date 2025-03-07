@@ -264,4 +264,17 @@ jobs:
         message: |
           ❌ Kernel Build Failed for `${{ github.event.inputs.CODENAME }}`
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          ⏱️ El
+          ⏱️ Elapsed Time: `${{ steps.build.outputs.elapsed_time }}` seconds
+          📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
+
+    - name: Notify Build Canceled
+      if: cancelled() && ${{ github.event.inputs.ENABLE_TELEGRAM_NOTIFICATIONS == 'true' }}
+      uses: appleboy/telegram-action@master
+      with:
+        to: ${{ secrets.TELEGRAM_CHAT_ID }}
+        token: ${{ secrets.TELEGRAM_TOKEN }}
+        format: markdown  # Enable Markdown formatting
+        message: |
+          🚫 Kernel Build Canceled for `${{ github.event.inputs.CODENAME }}`
+          🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
