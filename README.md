@@ -80,7 +80,7 @@ For more details, see the [LICENSE](LICENSE) file.
 
 ## 🌟 **Credits**
 
-- **Alireza Parsi** - Maintainer and Developer  
+- **[EmanuelCN](https://github.com/EmanuelCN) and [Alireza Parsi](https://github.com/AlirezaParsihttps://github.com/AlirezaParsi)** - Maintainer and Developer  
 - **KernelSU Next Team** - For their amazing work on KernelSU Next
 - **The Linux Foundation** - For the Linux Kernel  
 
