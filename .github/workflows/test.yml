@@ -262,12 +262,13 @@ jobs:
             📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
 
   notify_cancellation:
-    if: cancelled() && ${{ github.event.inputs.ENABLE_TELEGRAM_NOTIFICATIONS == 'true' }}
+    if: always() && ${{ github.event.inputs.ENABLE_TELEGRAM_NOTIFICATIONS == 'true' }}
     runs-on: ubuntu-latest
     needs: build
     environment: Telegram
     steps:
       - name: Notify Build Canceled
+        if: cancelled()
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
