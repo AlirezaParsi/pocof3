@@ -71,9 +71,9 @@ jobs:
         token: ${{ secrets.TELEGRAM_TOKEN }}
         format: markdown  # Enable Markdown formatting
         message: |
-          🚀 __Kernel build started for__ **${{ github.event.inputs.CODENAME }}**
+          🚀 Kernel Build Started for `${{ github.event.inputs.CODENAME }}`
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          📦 Build Title: **${{ github.event.inputs.BUILD_TITLE || github.event.inputs.CODENAME }}**
+          📦 Build Title: `${{ github.event.inputs.BUILD_TITLE || github.event.inputs.CODENAME }}`
 
     - name: Initialize workspace
       run: |
@@ -232,10 +232,10 @@ jobs:
         token: ${{ secrets.TELEGRAM_TOKEN }}
         format: markdown  # Enable Markdown formatting
         message: |
-          ✅ __Kernel build succeeded for__ **${{ github.event.inputs.CODENAME }}**
+          ✅ Kernel Build Succeeded for `${{ github.event.inputs.CODENAME }}`
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          ⏱️ Elapsed Time: ${{ steps.build.outputs.elapsed_time }} seconds
-          📦 Build Title: **${{ steps.workspace.outputs.build_title }}**
+          ⏱️ Elapsed Time: `${{ steps.build.outputs.elapsed_time }}` seconds
+          📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
 
     - name: Notify Build Failure
       if: failure()
@@ -245,10 +245,10 @@ jobs:
         token: ${{ secrets.TELEGRAM_TOKEN }}
         format: markdown  # Enable Markdown formatting
         message: |
-          ❌ Kernel Build Failed for **${{ github.event.inputs.CODENAME }}**
+          ❌ Kernel Build Failed for `${{ github.event.inputs.CODENAME }}`
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           ⏱️ Elapsed Time: `${{ steps.build.outputs.elapsed_time }}` seconds
-          📦 Build Title: **${{ steps.workspace.outputs.build_title }}**
+          📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
 
     - name: Notify Build Canceled
       if: cancelled()
@@ -258,6 +258,6 @@ jobs:
         token: ${{ secrets.TELEGRAM_TOKEN }}
         format: markdown  # Enable Markdown formatting
         message: |
-          🚫 Kernel Build Canceled for **${{ github.event.inputs.CODENAME }}**
+          🚫 Kernel Build Canceled for `${{ github.event.inputs.CODENAME }}`
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          📦 Build Title: **${{ steps.workspace.outputs.build_title }}**
+          📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
