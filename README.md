@@ -95,6 +95,9 @@ For more details, see the [LICENSE](LICENSE) file.
 
 ---
 
+[![Star History Chart](https://api.star-history.com/svg?repos=AlirezaParsi/n0kernel&type=Date)](https://star-history.com/#AlirezaParsi/n0kernel&Date)
+
+---
 ## ❤️ **Support My Work**
 
 If you enjoy using N0Kernel Fork and want to support my work, consider:
