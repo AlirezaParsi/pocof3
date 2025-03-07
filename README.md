@@ -95,7 +95,7 @@ For more details, see the [LICENSE](LICENSE) file.
 
 ---
 
-[![Star History Chart](https://api.star-history.com/svg?repos=AlirezaParsi/n0kernel&type=Date)](https://star-history.com/#AlirezaParsi/n0kernel&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=AlirezaParsi/n0kernel&type=Date)](https://star-history.com/#AlirezaParsi/pocof3&Date)
 
 ---
 ## ❤️ **Support My Work**
