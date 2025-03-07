@@ -259,5 +259,4 @@ jobs:
         message: |
           🚫 Kernel Build Canceled for `${{ github.event.inputs.CODENAME }}`
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          ⏱️ Elapsed Time: `${{ steps.build.outputs.elapsed_time }}` seconds
           📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
