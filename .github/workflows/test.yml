@@ -20,7 +20,7 @@ on:
         default: 'alioth'
         required: true
       ENABLE_ANYKERNEL:
-        description: 'Enable AnyKernel packaging'
+        description: 'Enable AnyKernel packaging (for both AnyKernel and Second AnyKernel)'
         type: boolean
         default: true
       ANYKERNEL_URL:
@@ -31,10 +31,6 @@ on:
         description: 'AnyKernel Branch (defaults to codename)'
         default: 'main'
         required: false
-      ENABLE_SECOND_ANYKERNEL:
-        description: 'Enable Second AnyKernel packaging'
-        type: boolean
-        default: true
       SECOND_ANYKERNEL_URL:
         description: 'Second AnyKernel Url (leave blank if you dont want AnyKernel)'
         default: 'https://github.com/AlirezaParsi/hyperf3'
@@ -68,7 +64,6 @@ jobs:
         echo "Codename: ${{ github.event.inputs.CODENAME }}"
         echo "Enable AnyKernel: ${{ github.event.inputs.ENABLE_ANYKERNEL }}"
         echo "AnyKernel Url: ${{ github.event.inputs.ANYKERNEL_URL }}/tree/${{ github.event.inputs.ANYKERNEL_BRANCH }}"
-        echo "Enable Second AnyKernel: ${{ github.event.inputs.ENABLE_SECOND_ANYKERNEL }}"
         echo "Second AnyKernel Url: ${{ github.event.inputs.SECOND_ANYKERNEL_URL }}/tree/${{ github.event.inputs.SECOND_ANYKERNEL_BRANCH }}"
         echo "Enable Telegram Notifications: ${{ github.event.inputs.ENABLE_TELEGRAM_NOTIFICATIONS }}"
         echo "Upload to Release: ${{ github.event.inputs.UPLOAD_TO_RELEASE }}"
@@ -169,7 +164,7 @@ jobs:
       id: anykernel
 
     - name: Second AnyKernel3
-      if: ${{ success() && github.event.inputs.ENABLE_SECOND_ANYKERNEL == 'true' && github.event.inputs.SECOND_ANYKERNEL_URL != '' }}
+      if: ${{ success() && github.event.inputs.ENABLE_ANYKERNEL == 'true' && github.event.inputs.SECOND_ANYKERNEL_URL != '' }}
       run: |
         if [[ -z "${{ github.event.inputs.SECOND_ANYKERNEL_BRANCH }}" ]]; then
           second_anykernel_branch=${{ github.event.inputs.CODENAME }}
@@ -241,7 +236,7 @@ jobs:
           !${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/AnyKernel3/.github
 
     - uses: actions/upload-artifact@v4
-      if: ${{ success() && github.event.inputs.ENABLE_SECOND_ANYKERNEL == 'true' && github.event.inputs.SECOND_ANYKERNEL_URL != '' && github.event.inputs.UPLOAD_TO_RELEASE != 'true' }}
+      if: ${{ success() && github.event.inputs.ENABLE_ANYKERNEL == 'true' && github.event.inputs.SECOND_ANYKERNEL_URL != '' && github.event.inputs.UPLOAD_TO_RELEASE != 'true' }}
       with:
         name: ${{ steps.second_anykernel.outputs.second_zipname }}
         path: |
