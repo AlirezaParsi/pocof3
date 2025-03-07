@@ -1,4 +1,3 @@
-# Note: If you are using this code to build your kernel, please mention my Telegram username @AlirezaParsi in your credits. This is how you can support my work.
 name: Kernel Build (alioth) - KSUNEXT ONLY clang-r547379
 
 on:
