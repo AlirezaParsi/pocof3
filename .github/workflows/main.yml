@@ -1,4 +1,0 @@
-- name: Debug Secrets
-  run: |
-    echo "TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}"
-    echo "TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}"
