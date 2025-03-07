@@ -8,7 +8,16 @@
 Welcome to **N0Kernel Fork**, a custom kernel designed to enhance your Android experience with performance optimizations, battery improvements, and cutting-edge features. Built on Linux Kernel **4.19**, N0Kernel is tailored for stability, speed, and customization.
 
 ---
+## 📑 **Table of Contents**
+- [Features](#-features)
+- [Installation](#-installation)
+- [Support](#-support)
+- [Contributing](#-contributing)
+- [License](#-license)
+- [Credits](#-credits)
+- [Support My Work](#️-support-my-work)
 
+---
 ## 📌 **Features**
 
 ✨ **Performance Enhancements**  
