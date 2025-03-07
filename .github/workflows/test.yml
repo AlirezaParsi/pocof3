@@ -261,12 +261,13 @@ jobs:
             ⏱️ Elapsed Time: `${{ steps.build.outputs.elapsed_time }}` seconds
             📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
 
-      - name: Debug Cancellation
-        if: cancelled()
-        run: echo "Job was cancelled!"
-
+  notify_cancellation:
+    if: cancelled() && ${{ github.event.inputs.ENABLE_TELEGRAM_NOTIFICATIONS == 'true' }}
+    runs-on: ubuntu-latest
+    needs: build
+    environment: Telegram
+    steps:
       - name: Notify Build Canceled
-        if: cancelled() && ${{ github.event.inputs.ENABLE_TELEGRAM_NOTIFICATIONS == 'true' }}
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
