@@ -53,8 +53,8 @@ Welcome to **N0Kernel Fork**, a custom kernel designed to enhance your Android e
 
 If you have any questions, issues, or suggestions, feel free to reach out:
 
-- **Telegram Channel**: [Alizashub](https://t.me/Alizashub)  
-- **Telegram Group**: [TheAOSP](https://t.me/TheAOSP)  
+- **Telegram Channel**: [CLICK](https://t.me/Alizashub)  
+- **Telegram Group**: [CLICK](https://t.me/TheAOSP)  
 - **GitHub Issues**: [Open an Issue](https://github.com/AlirezaParsi/pocof3/issues)
 
 ---
