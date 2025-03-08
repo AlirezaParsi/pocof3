@@ -194,3 +194,29 @@ jobs:
           📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
           🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
           👤 Canceled by: ${{ github.actor && format('[{}]({}/{})', github.actor, github.server_url, github.actor) || 'GitHub System' }}
+
+  upload_files:
+    if: success() && github.event.inputs.UPLOAD_TO_RELEASE == 'true'
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+    - name: Download Artifacts from Build Job
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts
+
+    - name: Upload AnyKernel ZIP to Telegram
+      uses: appleboy/telegram-action@master
+      with:
+        to: ${{ secrets.TELEGRAM_CHAT_ID }}
+        token: ${{ secrets.TELEGRAM_TOKEN }}
+        document: artifacts/${{ needs.build.outputs.zipname }}
+        silent: true  # Suppress the initial message
+
+    - name: Upload Second AnyKernel ZIP to Telegram
+      uses: appleboy/telegram-action@master
+      with:
+        to: ${{ secrets.TELEGRAM_CHAT_ID }}
+        token: ${{ secrets.TELEGRAM_TOKEN }}
+        document: artifacts/${{ needs.build.outputs.second_zipname }}
+        silent: true  # Suppress the initial message
