@@ -179,6 +179,32 @@ jobs:
       working-directory: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/
       id: second_anykernel
 
+    - name: Upload AnyKernel ZIP to Telegram
+      if: ${{ success() && github.event.inputs.ANYKERNEL_URL != '' }}
+      uses: appleboy/telegram-action@master
+      with:
+        to: ${{ secrets.TELEGRAM_CHAT_ID }}
+        token: ${{ secrets.TELEGRAM_TOKEN }}
+        document: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}
+        caption: |
+          ✅ Kernel Build Succeeded for `${{ github.event.inputs.CODENAME }}`
+          🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
+          🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
+
+    - name: Upload Second AnyKernel ZIP to Telegram
+      if: ${{ success() && github.event.inputs.SECOND_ANYKERNEL_URL != '' }}
+      uses: appleboy/telegram-action@master
+      with:
+        to: ${{ secrets.TELEGRAM_CHAT_ID }}
+        token: ${{ secrets.TELEGRAM_TOKEN }}
+        document: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.second_anykernel.outputs.second_zipname }}
+        caption: |
+          ✅ Kernel Build Succeeded for `${{ github.event.inputs.CODENAME }}`
+          🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
+          🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
+
     - name: Upload to Release
       if: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' }}
       uses: softprops/action-gh-release@v2
@@ -187,7 +213,7 @@ jobs:
           ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}
           ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.second_anykernel.outputs.second_zipname }}
         name: ${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}
-        tag_name: ${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}
+        tag_name: ${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}  # Only date, no time
         body: |
           <b>${{ steps.workspace.outputs.build_title }}</b>
           <b>Kernel successfully built!</b>, took ${{ steps.build.outputs.elapsed_time }} seconds.
@@ -233,21 +259,6 @@ jobs:
           ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/SecondAnyKernel/
           !${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/SecondAnyKernel/.git
           !${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/SecondAnyKernel/.github
-
-    - name: Notify Build Success
-      if: success()
-      uses: appleboy/telegram-action@master
-      with:
-        to: ${{ secrets.TELEGRAM_CHAT_ID }}
-        token: ${{ secrets.TELEGRAM_TOKEN }}
-        format: markdown
-        message: |
-          ✅ Kernel Build Succeeded for `${{ github.event.inputs.CODENAME }}`
-          🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          ⏱️ Elapsed Time: `${{ steps.build.outputs.elapsed_time }}` seconds
-          📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
-          🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
-          📥 Download: [Release Artifacts](https://github.com/${{ github.repository }}/releases/tag/${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }})
 
     - name: Notify Build Failure
       if: failure()
