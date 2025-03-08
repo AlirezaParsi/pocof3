@@ -52,6 +52,18 @@ jobs:
         build_date=$(date +"%Y%m%d")
         echo "build_date=$build_date" >> $GITHUB_OUTPUT
 
+    - name: Notify Build Start
+      uses: appleboy/telegram-action@master
+      with:
+        to: ${{ secrets.TELEGRAM_CHAT_ID }}
+        token: ${{ secrets.TELEGRAM_TOKEN }}
+        format: markdown
+        message: |
+          🚀 Kernel Build Started for `${{ github.event.inputs.CODENAME }}`
+          🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          📦 Build Title: `${{ github.event.inputs.BUILD_TITLE || github.event.inputs.CODENAME }}`
+          🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
+
     - name: Initialize workspace
       run: |
         mkdir workspace
