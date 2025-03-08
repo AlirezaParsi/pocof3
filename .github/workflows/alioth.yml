@@ -195,6 +195,7 @@ jobs:
           📄 Files:
           - `${{ steps.anykernel.outputs.zipname }}`
           - `${{ steps.second_anykernel.outputs.second_zipname }}`
+          ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && format('📥 Download Links:\n- [{}]({}/releases/download/{}/{})\n- [{}]({}/releases/download/{}/{})', steps.anykernel.outputs.zipname, github.server_url, github.repository, steps.upload_release.outputs.tag_name, steps.anykernel.outputs.zipname, steps.second_anykernel.outputs.second_zipname, github.server_url, github.repository, steps.upload_release.outputs.tag_name, steps.second_anykernel.outputs.second_zipname) || '' }}
 
     - name: Notify Build Failure
       if: failure()
