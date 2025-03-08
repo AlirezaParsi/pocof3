@@ -217,3 +217,9 @@ jobs:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
         token: ${{ secrets.TELEGRAM_TOKEN }}
         format: markdown
+        message: |
+          🚫 Kernel Build Canceled for `${{ github.event.inputs.CODENAME }}`
+          🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
+          🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
+          👤 Canceled by: ${{ github.actor && format('[{}]({}/{})', github.actor, github.server_url, github.actor) || 'GitHub System' }}
