@@ -183,41 +183,23 @@ jobs:
 
     - name: Delete Specific Message
       run: |
-        python3 <<EOF
-        import requests
-        import time
+        # Fetch the latest messages
+        response=$(curl -s "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/getUpdates")
+        echo "Response: $response"
 
-        TELEGRAM_TOKEN = "$${{ secrets.TELEGRAM_TOKEN }}"
-        CHAT_ID = "$${{ secrets.TELEGRAM_CHAT_ID }}"
+        # Extract the message ID of the specific message
+        message_id=$(echo "$response" | jq -r '.result[] | select(.message.text | contains("triggered by AlirezaParsi (workflow_dispatch)")) | .message.message_id')
+        echo "Message ID to delete: $message_id"
 
-        # Function to fetch the latest messages
-        def get_latest_messages():
-            url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getUpdates"
-            response = requests.get(url).json()
-            return response.get("result", [])
-
-        # Function to delete a message
-        def delete_message(message_id):
-            url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/deleteMessage"
-            payload = {
-                "chat_id": CHAT_ID,
-                "message_id": message_id
-            }
-            requests.post(url, json=payload)
-
-        # Main logic
-        def main():
-            messages = get_latest_messages()
-            for message in messages:
-                text = message.get("message", {}).get("text", "")
-                if "triggered by AlirezaParsi (workflow_dispatch)" in text:
-                    message_id = message["message"]["message_id"]
-                    delete_message(message_id)
-                    print(f"Deleted message with ID: {message_id}")
-
-        if __name__ == "__main__":
-            main()
-        EOF
+        # Delete the message
+        if [ -n "$message_id" ]; then
+          curl -s "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/deleteMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d "message_id=$message_id"
+          echo "Deleted message with ID: $message_id"
+        else
+          echo "No message found to delete."
+        fi
 
     - name: Send Success Notification
       if: success()
