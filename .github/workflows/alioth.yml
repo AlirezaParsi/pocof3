@@ -1,4 +1,4 @@
-name: Kernel Build (alioth) - KSUNEXT ONLY clang-r547379
+name: Kernel Build - KernelSU Next + SusFS
 
 on:
   pull_request:
@@ -7,25 +7,27 @@ on:
       BUILD_TITLE:
         description: 'Custom Build Title'
         required: false
-      KERNEL_TREE:
-        description: 'Kernel Tree'
-        default: 'https://github.com/AlirezaParsi/pocof3'
-        required: true
-      KERNEL_TREE_BRANCH:
+      BRANCH:
         description: 'Kernel Tree Branch'
+        type: choice
+        options: 
+        - KernelSU Next Only
+        - KernelSU Next + SusFS
         required: true
-        default: 'base'
       CODENAME:
-        description: 'Phone Codename'
-        default: 'alioth'
+        description: 'Device Codename'
+        type: choice
+        options: 
+        - alioth
+        - apollo
         required: true
       UPLOAD_TO_RELEASE:
-        description: 'Upload to release'
+        description: 'Upload to Release'
         type: boolean
         default: false
 
 jobs:
-  build:
+  prepare:
     if: github.event.repository.owner.id == github.event.sender.id
     runs-on: ubuntu-latest
     environment: Telegram
@@ -36,7 +38,7 @@ jobs:
       run: |
         echo "::group::User Environment Variables"
         echo "Custom Build Title: ${{ github.event.inputs.BUILD_TITLE }}"
-        echo "Kernel Tree: ${{ github.event.inputs.KERNEL_TREE }}/tree/${{ github.event.inputs.KERNEL_TREE_BRANCH }}"
+        echo "Branch: /tree/${{ github.event.inputs.KERNEL_TREE_BRANCH }}"
         echo "Codename: ${{ github.event.inputs.CODENAME }}"
         echo "Upload to Release: ${{ github.event.inputs.UPLOAD_TO_RELEASE }}"
         echo "::endgroup::"
@@ -49,7 +51,7 @@ jobs:
     - name: Generate Build Date
       id: build_date
       run: |
-        build_date=$(date +"%Y%m%d")
+        build_date=$(date +"%Y%m%d") # Only date, no time
         echo "build_date=$build_date" >> $GITHUB_OUTPUT
 
     - name: Notify Build Start
@@ -64,7 +66,7 @@ jobs:
           📦 Build Title: `${{ github.event.inputs.BUILD_TITLE || github.event.inputs.CODENAME }}`
           🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
 
-    - name: Initialize workspace
+    - name: Initialize Workspace
       run: |
         mkdir workspace
         cd workspace
@@ -73,7 +75,7 @@ jobs:
         echo "build_title=${{ github.event.inputs.BUILD_TITLE || github.event.inputs.CODENAME }}" >> $GITHUB_OUTPUT
       id: workspace
 
-    - name: Prepare the build environment
+    - name: Prepare the Build Environment
       run: |
         sudo apt install flex -y && sudo apt install libncurses6 -y
         wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz -O clang.tar.gz
@@ -83,28 +85,80 @@ jobs:
       working-directory: ${{ steps.workspace.outputs.workspace-folder }}
       id: tools
 
-    - name: Clone kernel source
+  ksunext:
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Clone Kernel Source (KernelSU Next Only)
+      if: ${{ github.event.inputs.BRANCH == 'KernelSU Next Only' }}
       run: |
-        git clone --depth=1 ${{ github.event.inputs.KERNEL_TREE }} -b ${{ github.event.inputs.KERNEL_TREE_BRANCH }} kernel_tree
+        git clone --depth=1 https://github.com/AlirezaParsi/pocof3 -b base kernel_tree
         echo "kernel-folder=$(pwd)/kernel_tree" >> $GITHUB_OUTPUT
       working-directory: ${{ steps.workspace.outputs.workspace-folder }}
       id: kernel
 
-    - name: Building kernel
+  ksunext-susfs:
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Clone Kernel Source (KernelSU Next + SusFS)
+      if: ${{ github.event.inputs.BRANCH == 'KernelSU Next + SusFS' }}
       run: |
-        rm -rf KernelSU-Next
+        git clone --depth=1 https://github.com/AlirezaParsi/pocof3 -b susfs kernel_tree
+        echo "kernel-folder=$(pwd)/kernel_tree" >> $GITHUB_OUTPUT
+      working-directory: ${{ steps.workspace.outputs.workspace-folder }}
+      id: kernel
+
+  build-ksunext:
+    needs: ksunext
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Build Kernel (KernelSU Next Only)
+      run: |
         curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
         export ARCH=arm64
         export SUBARCH=ARM64
         export KBUILD_BUILD_USER="aliza"
-        export KBUILD_BUILD_HOST="Github"
+        export KBUILD_BUILD_HOST="GitHub"
         make O=out vendor/alioth_defconfig PATH="${{ steps.tools.outputs.tools-folder }}/clang/bin:$PATH"
         make O=out CC=clang -j$(nproc --all) PATH="${{ steps.tools.outputs.tools-folder }}/clang/bin:$PATH" CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
         echo "elapsed_time=$(echo "$(date +%s)"-"${{ steps.workspace.outputs.start_time }}" | bc)" >> $GITHUB_OUTPUT
       working-directory: ${{ steps.kernel.outputs.kernel-folder }}
       id: build
 
-    - name: AnyKernel3
+  build-ksunext-susfs:
+    needs: ksunext-susfs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Build Kernel (KernelSU Next + SusFS)
+      run: |
+        curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
+        cp -rf "0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch" KernelSU-Next && cd ./KernelSU-Next && patch -p1 -f < "0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch" && cd ..
+        export ARCH=arm64
+        export SUBARCH=ARM64
+        export KBUILD_BUILD_USER="aliza"
+        export KBUILD_BUILD_HOST="GitHub"
+        make O=out vendor/alioth_defconfig PATH="${{ steps.tools.outputs.tools-folder }}/clang/bin:$PATH"
+        make O=out CC=clang -j$(nproc --all) PATH="${{ steps.tools.outputs.tools-folder }}/clang/bin:$PATH" CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
+        echo "elapsed_time=$(echo "$(date +%s)"-"${{ steps.workspace.outputs.start_time }}" | bc)" >> $GITHUB_OUTPUT
+      working-directory: ${{ steps.kernel.outputs.kernel-folder }}
+      id: build
+
+  packing-ksunext:
+    needs: build-ksunext
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: AnyKernel3 for KernelSU Next Only
       if: success()
       run: |
         git clone --recursive --depth=1 https://github.com/AlirezaParsi/F3aosp -b main AnyKernel3
@@ -118,7 +172,7 @@ jobs:
         if [ -e "dtbo.img" ]; then
           cp -f dtbo.img AnyKernel3
         fi
-        build_date=$(date +"%Y%m%d-%H%M%S")
+        build_date=$(date +"%Y%m%d-%H%M%S") # Date and time for ZIP filename
         name=N0kernel-AOSP-KSUNEXTONLY-${{ github.event.inputs.CODENAME }}-$build_date.zip
         cd AnyKernel3
         zip -q -r $name *
@@ -127,7 +181,7 @@ jobs:
       working-directory: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/
       id: anykernel
 
-    - name: Second AnyKernel3
+    - name: Second AnyKernel3 KernelSU Next Only
       if: success()
       run: |
         git clone --recursive --depth=1 https://github.com/AlirezaParsi/hyperf3 -b main SecondAnyKernel
@@ -146,6 +200,60 @@ jobs:
       working-directory: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/
       id: second_anykernel
 
+  packing-ksunext:
+    needs: build-ksunext-susfs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: AnyKernel3 for KernelSU Next + SusFS
+      if: success()
+      run: |
+        git clone --recursive --depth=1 https://github.com/AlirezaParsi/F3aosp -b main AnyKernel3
+        if [ -e "Image.gz" ]; then
+          cp -f Image.gz AnyKernel3
+        fi
+        if [ -e "dtb.img" ]; then
+          mv -f dtb.img dtb
+          cp -f dtb AnyKernel3/dtb
+        fi
+        if [ -e "dtbo.img" ]; then
+          cp -f dtbo.img AnyKernel3
+        fi
+        build_date=$(date +"%Y%m%d-%H%M%S") # Date and time for ZIP filename
+        name=N0kernel-AOSP-KSUNEXT-SUSFS-${{ github.event.inputs.CODENAME }}-$build_date.zip
+        cd AnyKernel3
+        zip -q -r $name *
+        mv $name ../
+        echo "zipname=$name" >> $GITHUB_OUTPUT
+      working-directory: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/
+      id: anykernel
+
+    - name: Second AnyKernel3 KernelSU Next + SusFS
+      if: success()
+      run: |
+        git clone --recursive --depth=1 https://github.com/AlirezaParsi/hyperf3 -b main SecondAnyKernel
+        if [ -e "Image.gz" ]; then
+          cp -f Image.gz SecondAnyKernel
+        fi
+        if [ -e "dtb" ]; then
+          cp -f dtb SecondAnyKernel/dtb
+        fi
+        build_date=$(date +"%Y%m%d-%H%M%S")
+        second_name=N0kernel-HYPEROS-KSUNEXT-SUSFS-${{ github.event.inputs.CODENAME }}-$build_date.zip
+        cd SecondAnyKernel
+        zip -q -r $second_name *
+        mv $second_name ../
+        echo "second_zipname=$second_name" >> $GITHUB_OUTPUT
+      working-directory: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/
+      id: second_anykernel
+
+  upload:
+    needs: [packing-ksunext, packing-ksunext-susfs]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
     - name: Upload to Release
       if: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' }}
       uses: softprops/action-gh-release@v2
