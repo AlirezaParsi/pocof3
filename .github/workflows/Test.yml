@@ -1,4 +1,4 @@
-name: Kernel Build Debug (alioth) - SUSFS + KSU NEXT | clang-r547379
+name: test script
 
 on:
   workflow_dispatch:
