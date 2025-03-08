@@ -1,4 +1,4 @@
-name: Kernel Build (alioth) - KSUNEXT ONLY clang-r547379
+name: Kernel Build (alioth) - KSUNEXT ONLY | clang-r547379
 
 on:
   pull_request:
@@ -49,7 +49,7 @@ jobs:
     - name: Generate Build Date
       id: build_date
       run: |
-        build_date=$(date +"%Y%m%d")
+        build_date=$(date +"%Y%m%d")  # Only date, no time
         echo "build_date=$build_date" >> $GITHUB_OUTPUT
 
     - name: Notify Build Start
@@ -75,11 +75,12 @@ jobs:
 
     - name: Prepare the build environment
       run: |
-        sudo apt install flex -y && sudo apt install libncurses6 -y
+        sudo apt update -y
+        sudo apt install -y flex bison libncurses-dev libssl-dev bc build-essential git
         wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz -O clang.tar.gz
         mkdir clang
         tar -xf clang.tar.gz -C clang
-        echo "tools-folder=$(pwd)" >> $GITHUB_OUTPUT
+        echo "tools-folder=$(pwd)/clang" >> $GITHUB_OUTPUT
       working-directory: ${{ steps.workspace.outputs.workspace-folder }}
       id: tools
 
@@ -98,8 +99,8 @@ jobs:
         export SUBARCH=ARM64
         export KBUILD_BUILD_USER="aliza"
         export KBUILD_BUILD_HOST="Github"
-        make O=out vendor/alioth_defconfig PATH="${{ steps.tools.outputs.tools-folder }}/clang/bin:$PATH"
-        make O=out CC=clang -j$(nproc --all) PATH="${{ steps.tools.outputs.tools-folder }}/clang/bin:$PATH" CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
+        make O=out vendor/alioth_defconfig PATH="${{ steps.tools.outputs.tools-folder }}/bin:$PATH"
+        make O=out CC=clang -j$(nproc --all) PATH="${{ steps.tools.outputs.tools-folder }}/bin:$PATH" CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
         echo "elapsed_time=$(echo "$(date +%s)"-"${{ steps.workspace.outputs.start_time }}" | bc)" >> $GITHUB_OUTPUT
       working-directory: ${{ steps.kernel.outputs.kernel-folder }}
       id: build
@@ -118,7 +119,7 @@ jobs:
         if [ -e "dtbo.img" ]; then
           cp -f dtbo.img AnyKernel3
         fi
-        build_date=$(date +"%Y%m%d-%H%M%S")
+        build_date=$(date +"%Y%m%d-%H%M%S")  # Date and time for ZIP filename
         name=N0kernel-AOSP-KSUNEXTONLY-${{ github.event.inputs.CODENAME }}-$build_date.zip
         cd AnyKernel3
         zip -q -r $name *
@@ -137,7 +138,7 @@ jobs:
         if [ -e "dtb" ]; then
           cp -f dtb SecondAnyKernel/dtb
         fi
-        build_date=$(date +"%Y%m%d-%H%M%S")
+        build_date=$(date +"%Y%m%d-%H%M%S")  # Date and time for ZIP filename
         second_name=N0kernel-HYPEROS-KSUNEXTONLY-${{ github.event.inputs.CODENAME }}-$build_date.zip
         cd SecondAnyKernel
         zip -q -r $second_name *
@@ -164,21 +165,19 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       id: upload_release
 
-    - name: Upload AnyKernel ZIP to Telegram
+    - name: Upload AnyKernel ZIP to Telegram using curl
       if: success()
-      uses: appleboy/telegram-action@master
-      with:
-        to: ${{ secrets.TELEGRAM_CHAT_ID }}
-        token: ${{ secrets.TELEGRAM_TOKEN }}
-        document: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}
+      run: |
+        curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+             -F document=@"${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}" \
+             https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument
 
-    - name: Upload Second AnyKernel ZIP to Telegram
+    - name: Upload Second AnyKernel ZIP to Telegram using curl
       if: success()
-      uses: appleboy/telegram-action@master
-      with:
-        to: ${{ secrets.TELEGRAM_CHAT_ID }}
-        token: ${{ secrets.TELEGRAM_TOKEN }}
-        document: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.second_anykernel.outputs.second_zipname }}
+      run: |
+        curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+             -F document=@"${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.second_anykernel.outputs.second_zipname }}" \
+             https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument
 
     - name: Send Success Notification with Both Files
       if: success()
@@ -195,7 +194,7 @@ jobs:
           📄 Files:
           - `${{ steps.anykernel.outputs.zipname }}`
           - `${{ steps.second_anykernel.outputs.second_zipname }}`
-          ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && format('📥 Download Links:\n- [{}]({}/releases/download/{}/{})\n- [{}]({}/releases/download/{}/{})', steps.anykernel.outputs.zipname, github.server_url, github.repository, steps.upload_release.outputs.tag_name, steps.anykernel.outputs.zipname, steps.second_anykernel.outputs.second_zipname, github.server_url, github.repository, steps.upload_release.outputs.tag_name, steps.second_anykernel.outputs.second_zipname) || '' }}
+          📥 Download Link: [Release ${{ steps.build_date.outputs.build_date }}](${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }})
 
     - name: Notify Build Failure
       if: failure()
@@ -218,9 +217,3 @@ jobs:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
         token: ${{ secrets.TELEGRAM_TOKEN }}
         format: markdown
-        message: |
-          🚫 Kernel Build Canceled for `${{ github.event.inputs.CODENAME }}`
-          🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
-          🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
-          👤 Canceled by: ${{ github.actor && format('[{}]({}/{})', github.actor, github.server_url, github.actor) || 'GitHub System' }}
