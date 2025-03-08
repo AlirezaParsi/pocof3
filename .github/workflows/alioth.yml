@@ -39,10 +39,6 @@ on:
         description: 'Upload to release'
         type: boolean
         default: false
-      ENABLE_TELEGRAM_NOTIFICATIONS:
-        description: 'Enable Telegram notifications'
-        type: boolean
-        default: true
 
 jobs:
   build:
@@ -60,7 +56,6 @@ jobs:
         echo "Codename: ${{ github.event.inputs.CODENAME }}"
         echo "AnyKernel Url: ${{ github.event.inputs.ANYKERNEL_URL }}/tree/${{ github.event.inputs.ANYKERNEL_BRANCH }}"
         echo "Second AnyKernel Url: ${{ github.event.inputs.SECOND_ANYKERNEL_URL }}/tree/${{ github.event.inputs.SECOND_ANYKERNEL_BRANCH }}"
-        echo "Enable Telegram Notifications: ${{ github.event.inputs.ENABLE_TELEGRAM_NOTIFICATIONS }}"
         echo "Upload to Release: ${{ github.event.inputs.UPLOAD_TO_RELEASE }}"
         echo "::endgroup::"
 
@@ -72,20 +67,20 @@ jobs:
     - name: Generate Build Date
       id: build_date
       run: |
-        build_date=$(date +"%Y%m%d")
+        build_date=$(date +"%Y%m%d")  # Only date, no time
         echo "build_date=$build_date" >> $GITHUB_OUTPUT
 
     - name: Notify Build Start
-      if: ${{ github.event.inputs.ENABLE_TELEGRAM_NOTIFICATIONS == 'true' }}
       uses: appleboy/telegram-action@master
       with:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
         token: ${{ secrets.TELEGRAM_TOKEN }}
-        format: markdown  # Enable Markdown formatting
+        format: markdown
         message: |
           🚀 Kernel Build Started for `${{ github.event.inputs.CODENAME }}`
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           📦 Build Title: `${{ github.event.inputs.BUILD_TITLE || github.event.inputs.CODENAME }}`
+          🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
 
     - name: Initialize workspace
       run: |
@@ -149,7 +144,7 @@ jobs:
         if [ -e "dtbo.img" ]; then
           cp -f dtbo.img AnyKernel3
         fi
-        build_date=$(date +"%Y%m%d-%H%M%S")  # Get the build date in YYYYMMDD-HHMMSS format
+        build_date=$(date +"%Y%m%d")  # Only date, no time
         name=N0kernel-AOSP-KSUNEXTONLY-${{ github.event.inputs.CODENAME }}-$build_date.zip
         cd AnyKernel3
         zip -q -r $name *
@@ -175,7 +170,7 @@ jobs:
         if [ -e "dtb" ]; then
           cp -f dtb SecondAnyKernel/dtb
         fi
-        build_date=$(date +"%Y%m%d-%H%M%S")  # Get the build date in YYYYMMDD-HHMMSS format
+        build_date=$(date +"%Y%m%d")  # Only date, no time
         second_name=N0kernel-HYPEROS-KSUNEXTONLY-${{ github.event.inputs.CODENAME }}-$build_date.zip
         cd SecondAnyKernel
         zip -q -r $second_name *
@@ -240,40 +235,43 @@ jobs:
           !${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/SecondAnyKernel/.github
 
     - name: Notify Build Success
-      if: success() && ${{ github.event.inputs.ENABLE_TELEGRAM_NOTIFICATIONS == 'true' }}
+      if: success()
       uses: appleboy/telegram-action@master
       with:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
         token: ${{ secrets.TELEGRAM_TOKEN }}
-        format: markdown  # Enable Markdown formatting
+        format: markdown
         message: |
           ✅ Kernel Build Succeeded for `${{ github.event.inputs.CODENAME }}`
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           ⏱️ Elapsed Time: `${{ steps.build.outputs.elapsed_time }}` seconds
           📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
-          ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && format('📥 Download: [Release Artifacts](https://github.com/{0}/releases/tag/{1})', github.repository, steps.upload_release.outputs.tag_name) || '' }}
+          🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
+          📥 Download: [Release Artifacts](https://github.com/${{ github.repository }}/releases/tag/${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }})
 
     - name: Notify Build Failure
-      if: failure() && ${{ github.event.inputs.ENABLE_TELEGRAM_NOTIFICATIONS == 'true' }}
+      if: failure()
       uses: appleboy/telegram-action@master
       with:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
         token: ${{ secrets.TELEGRAM_TOKEN }}
-        format: markdown  # Enable Markdown formatting
+        format: markdown
         message: |
           ❌ Kernel Build Failed for `${{ github.event.inputs.CODENAME }}`
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           ⏱️ Elapsed Time: `${{ steps.build.outputs.elapsed_time }}` seconds
           📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
+          🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
 
     - name: Notify Build Canceled
-      if: cancelled() && ${{ github.event.inputs.ENABLE_TELEGRAM_NOTIFICATIONS == 'true' }}
+      if: cancelled()
       uses: appleboy/telegram-action@master
       with:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
         token: ${{ secrets.TELEGRAM_TOKEN }}
-        format: markdown  # Enable Markdown formatting
+        format: markdown
         message: |
           🚫 Kernel Build Canceled for `${{ github.event.inputs.CODENAME }}`
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
+          🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
