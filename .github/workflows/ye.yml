@@ -67,7 +67,7 @@ jobs:
     - name: Generate Build Date
       id: build_date
       run: |
-        build_date=$(date +"%Y%m%d")  # Only date, no time
+        build_date=$(date +"%Y%m%d")  # Only date for release tag
         echo "build_date=$build_date" >> $GITHUB_OUTPUT
 
     - name: Notify Build Start
@@ -144,7 +144,7 @@ jobs:
         if [ -e "dtbo.img" ]; then
           cp -f dtbo.img AnyKernel3
         fi
-        build_date=$(date +"%Y%m%d")  # Only date, no time
+        build_date=$(date +"%Y%m%d-%H%M%S")  # Date and time for ZIP filename
         name=N0kernel-AOSP-KSUNEXTONLY-${{ github.event.inputs.CODENAME }}-$build_date.zip
         cd AnyKernel3
         zip -q -r $name *
@@ -170,7 +170,7 @@ jobs:
         if [ -e "dtb" ]; then
           cp -f dtb SecondAnyKernel/dtb
         fi
-        build_date=$(date +"%Y%m%d")  # Only date, no time
+        build_date=$(date +"%Y%m%d-%H%M%S")  # Date and time for ZIP filename
         second_name=N0kernel-HYPEROS-KSUNEXTONLY-${{ github.event.inputs.CODENAME }}-$build_date.zip
         cd SecondAnyKernel
         zip -q -r $second_name *
@@ -178,6 +178,25 @@ jobs:
         echo "second_zipname=$second_name" >> $GITHUB_OUTPUT
       working-directory: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/
       id: second_anykernel
+
+    - name: Upload to Release
+      if: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' }}
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}
+          ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.second_anykernel.outputs.second_zipname }}
+        name: ${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}
+        tag_name: ${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}  # Date-only release tag
+        body: |
+          <b>${{ steps.workspace.outputs.build_title }}</b>
+          <b>Kernel successfully built!</b>, took ${{ steps.build.outputs.elapsed_time }} seconds.
+          
+          <b>Kernel tree</b>: ${{ github.event.inputs.KERNEL_TREE }}/tree/${{ github.event.inputs.KERNEL_TREE_BRANCH }}
+          <b>Action</b>: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      id: upload_release
 
     - name: Upload AnyKernel ZIP to Telegram
       if: ${{ success() && github.event.inputs.ANYKERNEL_URL != '' }}
@@ -191,6 +210,7 @@ jobs:
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
           🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
+          📄 File: `${{ steps.anykernel.outputs.zipname }}`
 
     - name: Upload Second AnyKernel ZIP to Telegram
       if: ${{ success() && github.event.inputs.SECOND_ANYKERNEL_URL != '' }}
@@ -204,6 +224,7 @@ jobs:
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
           🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
+          📄 File: `${{ steps.second_anykernel.outputs.second_zipname }}`
 
     - name: Notify Build Failure
       if: failure()
