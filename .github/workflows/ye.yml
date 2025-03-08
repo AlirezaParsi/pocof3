@@ -187,8 +187,8 @@ jobs:
         import requests
         import time
 
-        TELEGRAM_TOKEN = "${{ secrets.TELEGRAM_TOKEN }}"
-        CHAT_ID = "${{ secrets.TELEGRAM_CHAT_ID }}"
+        TELEGRAM_TOKEN = "$${{ secrets.TELEGRAM_TOKEN }}"
+        CHAT_ID = "$${{ secrets.TELEGRAM_CHAT_ID }}"
 
         # Function to fetch the latest messages
         def get_latest_messages():
