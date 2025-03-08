@@ -53,6 +53,7 @@ jobs:
         echo "build_date=$build_date" >> $GITHUB_OUTPUT
 
     - name: Notify Build Start
+      id: notify_build_start
       uses: appleboy/telegram-action@master
       with:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -62,7 +63,7 @@ jobs:
           🚀 Kernel Build Started for `${{ github.event.inputs.CODENAME }}`
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           📦 Build Title: `${{ github.event.inputs.BUILD_TITLE || github.event.inputs.CODENAME }}`
-          🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
+          🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }
 
     - name: Initialize workspace
       run: |
@@ -172,20 +173,6 @@ jobs:
         token: ${{ secrets.TELEGRAM_TOKEN }}
         document: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}
 
-    - name: Send AnyKernel Upload Caption to Telegram
-      if: success()
-      uses: appleboy/telegram-action@master
-      with:
-        to: ${{ secrets.TELEGRAM_CHAT_ID }}
-        token: ${{ secrets.TELEGRAM_TOKEN }}
-        format: markdown
-        message: |
-          ✅ Kernel Build Succeeded for `${{ github.event.inputs.CODENAME }}`
-          🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
-          🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
-          📄 File: `${{ steps.anykernel.outputs.zipname }}`
-
     - name: Upload Second AnyKernel ZIP to Telegram
       if: success()
       uses: appleboy/telegram-action@master
@@ -194,7 +181,45 @@ jobs:
         token: ${{ secrets.TELEGRAM_TOKEN }}
         document: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.second_anykernel.outputs.second_zipname }}
 
-    - name: Send Second AnyKernel Upload Caption to Telegram
+    - name: Delete Specific Message
+      run: |
+        python3 <<EOF
+        import requests
+        import time
+
+        TELEGRAM_TOKEN = "${{ secrets.TELEGRAM_TOKEN }}"
+        CHAT_ID = "${{ secrets.TELEGRAM_CHAT_ID }}"
+
+        # Function to fetch the latest messages
+        def get_latest_messages():
+            url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getUpdates"
+            response = requests.get(url).json()
+            return response.get("result", [])
+
+        # Function to delete a message
+        def delete_message(message_id):
+            url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/deleteMessage"
+            payload = {
+                "chat_id": CHAT_ID,
+                "message_id": message_id
+            }
+            requests.post(url, json=payload)
+
+        # Main logic
+        def main():
+            messages = get_latest_messages()
+            for message in messages:
+                text = message.get("message", {}).get("text", "")
+                if "triggered by AlirezaParsi (workflow_dispatch)" in text:
+                    message_id = message["message"]["message_id"]
+                    delete_message(message_id)
+                    print(f"Deleted message with ID: {message_id}")
+
+        if __name__ == "__main__":
+            main()
+        EOF
+
+    - name: Send Success Notification
       if: success()
       uses: appleboy/telegram-action@master
       with:
@@ -206,7 +231,6 @@ jobs:
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
           🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
-          📄 File: `${{ steps.second_anykernel.outputs.second_zipname }}`
 
     - name: Notify Build Failure
       if: failure()
