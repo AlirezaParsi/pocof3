@@ -150,13 +150,21 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       id: upload_release
 
-    - name: Save Artifacts
-      uses: actions/upload-artifact@v3
+    - name: Upload AnyKernel ZIP to Telegram
+      if: success()
+      uses: appleboy/telegram-action@master
       with:
-        name: kernel-build-artifacts
-        path: |
-          ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}
-          ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.second_anykernel.outputs.second_zipname }}
+        to: ${{ secrets.TELEGRAM_CHAT_ID }}
+        token: ${{ secrets.TELEGRAM_TOKEN }}
+        document: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}
+
+    - name: Upload Second AnyKernel ZIP to Telegram
+      if: success()
+      uses: appleboy/telegram-action@master
+      with:
+        to: ${{ secrets.TELEGRAM_CHAT_ID }}
+        token: ${{ secrets.TELEGRAM_TOKEN }}
+        document: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.second_anykernel.outputs.second_zipname }}
 
     - name: Send Success Notification with Both Files
       if: success()
@@ -202,30 +210,3 @@ jobs:
           📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
           🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
           👤 Canceled by: ${{ github.actor && format('[{}]({}/{})', github.actor, github.server_url, github.actor) || 'GitHub System' }}
-
-  upload_files:
-    if: success() && github.event.inputs.UPLOAD_TO_RELEASE == 'true'
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-    - name: Download Artifacts from Build Job
-      uses: actions/download-artifact@v3
-      with:
-        name: kernel-build-artifacts
-        path: artifacts
-
-    - name: Upload AnyKernel ZIP to Telegram
-      uses: appleboy/telegram-action@master
-      with:
-        to: ${{ secrets.TELEGRAM_CHAT_ID }}
-        token: ${{ secrets.TELEGRAM_TOKEN }}
-        document: artifacts/${{ needs.build.outputs.zipname }}
-        silent: true  # Suppress the initial message
-
-    - name: Upload Second AnyKernel ZIP to Telegram
-      uses: appleboy/telegram-action@master
-      with:
-        to: ${{ secrets.TELEGRAM_CHAT_ID }}
-        token: ${{ secrets.TELEGRAM_TOKEN }}
-        document: artifacts/${{ needs.build.outputs.second_zipname }}
-        silent: true  # Suppress the initial message
