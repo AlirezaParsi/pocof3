@@ -164,6 +164,13 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       id: upload_release
 
+    - name: Generate Download Link
+      if: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' }}
+      id: generate_link
+      run: |
+        download_link="${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}"
+        echo "download_link=$download_link" >> $GITHUB_OUTPUT
+
     - name: Upload AnyKernel ZIP to Telegram
       if: success()
       uses: appleboy/telegram-action@master
@@ -195,7 +202,7 @@ jobs:
           📄 Files:
           - `${{ steps.anykernel.outputs.zipname }}`
           - `${{ steps.second_anykernel.outputs.second_zipname }}`
-          ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && format('📥 [Download Release]({}/{}/releases/tag/{}-{})', github.server_url, github.repository, github.event.inputs.CODENAME, steps.build_date.outputs.build_date) || '' }}
+          ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && format('📥 [Download Release]({})', steps.generate_link.outputs.download_link) || '' }}
 
     - name: Notify Build Failure
       if: failure()
