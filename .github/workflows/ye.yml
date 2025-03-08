@@ -1,4 +1,4 @@
-name: Kernel Build (alioth) - KSUNEXT ONLY clang-r547379
+name: Kernel Build alioth tg file
 
 on:
   pull_request:
