@@ -1,4 +1,4 @@
-name: Kernel Build (apollo) - SUSFS + KSU NEXT | clang-r547379
+name: Kernel Build apollo-susfs
 
 on:
   pull_request:
@@ -194,7 +194,7 @@ jobs:
           📄 Files:
           - `${{ steps.anykernel.outputs.zipname }}`
           - `${{ steps.second_anykernel.outputs.second_zipname }}`
-          📥 Download Link: [Release ${{ steps.build_date.outputs.build_date }}](${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }})
+          ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && format('📥 Download Link: [Release {}]({}/{}/releases/tag/{}-{})', steps.build_date.outputs.build_date, github.server_url, github.repository, github.event.inputs.CODENAME, steps.build_date.outputs.build_date) || '' }}
 
     - name: Notify Build Failure
       if: failure()
