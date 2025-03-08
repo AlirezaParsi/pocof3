@@ -274,7 +274,7 @@ jobs:
           🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
 
     - name: Notify Build Canceled
-      if: cancelled() && ${{ env.ENABLE_TELEGRAM_NOTIFICATIONS == 'true' }}
+      if: cancelled() && ${{ github.event.inputs.ENABLE_TELEGRAM_NOTIFICATIONS == 'true' }}
       uses: appleboy/telegram-action@master
       with:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
