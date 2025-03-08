@@ -243,7 +243,7 @@ jobs:
         path: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/dtbo.img
 
     - uses: actions/upload-artifact@v4
-      if: ${{ success() && github.event.inputs.ANYKERNEL_URL != '' && github.event.inputs.UPLOAD_TO_RELEASE != 'true' }}
+      if: ${{ success() && github.event.inputs.UPLOAD_TO_RELEASE != 'true' }}
       with:
         name: ${{ steps.anykernel.outputs.zipname }}
         path: |
@@ -252,7 +252,7 @@ jobs:
           !${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/AnyKernel3/.github
 
     - uses: actions/upload-artifact@v4
-      if: ${{ success() && github.event.inputs.SECOND_ANYKERNEL_URL != '' && github.event.inputs.UPLOAD_TO_RELEASE != 'true' }}
+      if: ${{ success() && github.event.inputs.UPLOAD_TO_RELEASE != 'true' }}
       with:
         name: ${{ steps.second_anykernel.outputs.second_zipname }}
         path: |
