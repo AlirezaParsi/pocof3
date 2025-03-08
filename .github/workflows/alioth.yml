@@ -172,20 +172,6 @@ jobs:
         token: ${{ secrets.TELEGRAM_TOKEN }}
         document: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}
 
-    - name: Send AnyKernel Upload Caption to Telegram
-      if: success()
-      uses: appleboy/telegram-action@master
-      with:
-        to: ${{ secrets.TELEGRAM_CHAT_ID }}
-        token: ${{ secrets.TELEGRAM_TOKEN }}
-        format: markdown
-        message: |
-          ✅ Kernel Build Succeeded for `${{ github.event.inputs.CODENAME }}`
-          🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
-          🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
-          📄 File: `${{ steps.anykernel.outputs.zipname }}`
-
     - name: Upload Second AnyKernel ZIP to Telegram
       if: success()
       uses: appleboy/telegram-action@master
@@ -194,7 +180,7 @@ jobs:
         token: ${{ secrets.TELEGRAM_TOKEN }}
         document: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.second_anykernel.outputs.second_zipname }}
 
-    - name: Send Second AnyKernel Upload Caption to Telegram
+    - name: Send Success Notification with Both Files
       if: success()
       uses: appleboy/telegram-action@master
       with:
@@ -206,7 +192,9 @@ jobs:
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
           🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
-          📄 File: `${{ steps.second_anykernel.outputs.second_zipname }}`
+          📄 Files:
+          - `${{ steps.anykernel.outputs.zipname }}`
+          - `${{ steps.second_anykernel.outputs.second_zipname }}`
 
     - name: Notify Build Failure
       if: failure()
@@ -234,3 +222,4 @@ jobs:
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
           🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
+          👤 Canceled by: ${{ github.actor && format('[{}]({}/{})', github.actor, github.server_url, github.actor) || 'GitHub System' }}
