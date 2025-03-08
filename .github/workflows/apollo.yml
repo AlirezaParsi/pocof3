@@ -1,4 +1,4 @@
-name: Kernel Build (apollo) - KSUNEXT ONLY | clang-r547379
+name: Kernel Build - apollo
 
 on:
   pull_request:
