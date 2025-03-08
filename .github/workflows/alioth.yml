@@ -19,22 +19,6 @@ on:
         description: 'Phone Codename'
         default: 'alioth'
         required: true
-      ANYKERNEL_URL:
-        description: 'AnyKernel Url (leave blank if you dont want AnyKernel)'
-        default: 'https://github.com/AlirezaParsi/F3aosp'
-        required: false
-      ANYKERNEL_BRANCH:
-        description: 'AnyKernel Branch (defaults to codename)'
-        default: 'main'
-        required: false
-      SECOND_ANYKERNEL_URL:
-        description: 'Second AnyKernel Url (leave blank if you dont want AnyKernel)'
-        default: 'https://github.com/AlirezaParsi/hyperf3'
-        required: false
-      SECOND_ANYKERNEL_BRANCH:
-        description: 'Second AnyKernel Branch (defaults to codename)'
-        default: 'main'
-        required: false
       UPLOAD_TO_RELEASE:
         description: 'Upload to release'
         type: boolean
@@ -54,8 +38,6 @@ jobs:
         echo "Custom Build Title: ${{ github.event.inputs.BUILD_TITLE }}"
         echo "Kernel Tree: ${{ github.event.inputs.KERNEL_TREE }}/tree/${{ github.event.inputs.KERNEL_TREE_BRANCH }}"
         echo "Codename: ${{ github.event.inputs.CODENAME }}"
-        echo "AnyKernel Url: ${{ github.event.inputs.ANYKERNEL_URL }}/tree/${{ github.event.inputs.ANYKERNEL_BRANCH }}"
-        echo "Second AnyKernel Url: ${{ github.event.inputs.SECOND_ANYKERNEL_URL }}/tree/${{ github.event.inputs.SECOND_ANYKERNEL_BRANCH }}"
         echo "Upload to Release: ${{ github.event.inputs.UPLOAD_TO_RELEASE }}"
         echo "::endgroup::"
 
@@ -67,20 +49,8 @@ jobs:
     - name: Generate Build Date
       id: build_date
       run: |
-        build_date=$(date +"%Y%m%d")  # Only date, no time
+        build_date=$(date +"%Y%m%d")
         echo "build_date=$build_date" >> $GITHUB_OUTPUT
-
-    - name: Notify Build Start
-      uses: appleboy/telegram-action@master
-      with:
-        to: ${{ secrets.TELEGRAM_CHAT_ID }}
-        token: ${{ secrets.TELEGRAM_TOKEN }}
-        format: markdown
-        message: |
-          🚀 Kernel Build Started for `${{ github.event.inputs.CODENAME }}`
-          🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          📦 Build Title: `${{ github.event.inputs.BUILD_TITLE || github.event.inputs.CODENAME }}`
-          � Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
 
     - name: Initialize workspace
       run: |
@@ -123,28 +93,20 @@ jobs:
       id: build
 
     - name: AnyKernel3
-      if: ${{ success() && github.event.inputs.ANYKERNEL_URL != '' }}
+      if: success()
       run: |
-        if [[ -z "${{ github.event.inputs.ANYKERNEL_BRANCH }}" ]]; then
-          anykernel_branch=${{ github.event.inputs.CODENAME }}
-        else
-          anykernel_branch=${{ github.event.inputs.ANYKERNEL_BRANCH }}
-        fi
-        git clone --recursive --depth=1 ${{ github.event.inputs.ANYKERNEL_URL }} -b $anykernel_branch AnyKernel3
-        # Check if Image.gz exists, then copy it to AnyKernel3 folder
+        git clone --recursive --depth=1 https://github.com/AlirezaParsi/F3aosp -b main AnyKernel3
         if [ -e "Image.gz" ]; then
           cp -f Image.gz AnyKernel3
         fi
-        # Check if dtb.img exists, rename to dtb and copy it to AnyKernel3 folder
         if [ -e "dtb.img" ]; then
           mv -f dtb.img dtb
           cp -f dtb AnyKernel3/dtb
         fi
-        # Check if dtbo.img exists, then copy it to AnyKernel3 folder
         if [ -e "dtbo.img" ]; then
           cp -f dtbo.img AnyKernel3
         fi
-        build_date=$(date +"%Y%m%d")  # Only date, no time
+        build_date=$(date +"%Y%m%d-%H%M%S")
         name=N0kernel-AOSP-KSUNEXTONLY-${{ github.event.inputs.CODENAME }}-$build_date.zip
         cd AnyKernel3
         zip -q -r $name *
@@ -154,23 +116,16 @@ jobs:
       id: anykernel
 
     - name: Second AnyKernel3
-      if: ${{ success() && github.event.inputs.SECOND_ANYKERNEL_URL != '' }}
+      if: success()
       run: |
-        if [[ -z "${{ github.event.inputs.SECOND_ANYKERNEL_BRANCH }}" ]]; then
-          second_anykernel_branch=${{ github.event.inputs.CODENAME }}
-        else
-          second_anykernel_branch=${{ github.event.inputs.SECOND_ANYKERNEL_BRANCH }}
-        fi
-        git clone --recursive --depth=1 ${{ github.event.inputs.SECOND_ANYKERNEL_URL }} -b $second_anykernel_branch SecondAnyKernel
-        # Check if Image.gz exists, then copy it to SecondAnyKernel folder
+        git clone --recursive --depth=1 https://github.com/AlirezaParsi/hyperf3 -b main SecondAnyKernel
         if [ -e "Image.gz" ]; then
           cp -f Image.gz SecondAnyKernel
         fi
-        # Check if dtb exists, then copy it to SecondAnyKernel folder
         if [ -e "dtb" ]; then
           cp -f dtb SecondAnyKernel/dtb
         fi
-        build_date=$(date +"%Y%m%d")  # Only date, no time
+        build_date=$(date +"%Y%m%d-%H%M%S")
         second_name=N0kernel-HYPEROS-KSUNEXTONLY-${{ github.event.inputs.CODENAME }}-$build_date.zip
         cd SecondAnyKernel
         zip -q -r $second_name *
@@ -179,14 +134,40 @@ jobs:
       working-directory: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/
       id: second_anykernel
 
+    - name: Upload to Release
+      if: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' }}
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}
+          ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.second_anykernel.outputs.second_zipname }}
+        name: ${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}
+        tag_name: ${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}
+        body: |
+          <b>${{ steps.workspace.outputs.build_title }}</b>
+          <b>Kernel successfully built!</b>, took ${{ steps.build.outputs.elapsed_time }} seconds.
+          <b>Kernel tree</b>: ${{ github.event.inputs.KERNEL_TREE }}/tree/${{ github.event.inputs.KERNEL_TREE_BRANCH }}
+          <b>Action</b>: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      id: upload_release
+
     - name: Upload AnyKernel ZIP to Telegram
-      if: ${{ success() && github.event.inputs.ANYKERNEL_URL != '' }}
+      if: success()
       uses: appleboy/telegram-action@master
       with:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
         token: ${{ secrets.TELEGRAM_TOKEN }}
         document: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}
-        caption: |
+
+    - name: Send AnyKernel Upload Caption to Telegram
+      if: success()
+      uses: appleboy/telegram-action@master
+      with:
+        to: ${{ secrets.TELEGRAM_CHAT_ID }}
+        token: ${{ secrets.TELEGRAM_TOKEN }}
+        format: markdown
+        message: |
           ✅ Kernel Build Succeeded for `${{ github.event.inputs.CODENAME }}`
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
@@ -194,13 +175,21 @@ jobs:
           📄 File: `${{ steps.anykernel.outputs.zipname }}`
 
     - name: Upload Second AnyKernel ZIP to Telegram
-      if: ${{ success() && github.event.inputs.SECOND_ANYKERNEL_URL != '' }}
+      if: success()
       uses: appleboy/telegram-action@master
       with:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
         token: ${{ secrets.TELEGRAM_TOKEN }}
         document: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.second_anykernel.outputs.second_zipname }}
-        caption: |
+
+    - name: Send Second AnyKernel Upload Caption to Telegram
+      if: success()
+      uses: appleboy/telegram-action@master
+      with:
+        to: ${{ secrets.TELEGRAM_CHAT_ID }}
+        token: ${{ secrets.TELEGRAM_TOKEN }}
+        format: markdown
+        message: |
           ✅ Kernel Build Succeeded for `${{ github.event.inputs.CODENAME }}`
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
