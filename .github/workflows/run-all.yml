@@ -31,7 +31,7 @@ jobs:
             await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              workflow_id: 'Kernel Build (alioth) - KSUNEXT ONLY clang-r547379.yml',
+              workflow_id: 'alioth.yml',
               ref: 'main',
               inputs: {
                 BUILD_TITLE: '${{ github.event.inputs.BUILD_TITLE_ALIOTH_KSUNEXT }}',
@@ -46,7 +46,7 @@ jobs:
             await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              workflow_id: 'Kernel Build (alioth) - SUSFS + KSU NEXT clang-r547379.yml',
+              workflow_id: 'susfs.yml',
               ref: 'main',
               inputs: {
                 BUILD_TITLE: '${{ github.event.inputs.BUILD_TITLE_ALIOTH_SUSFS }}',
@@ -61,7 +61,7 @@ jobs:
             await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              workflow_id: 'Kernel Build (apollo) - KSUNEXT ONLY clang-r547379.yml',
+              workflow_id: 'apollo.yml',
               ref: 'main',
               inputs: {
                 BUILD_TITLE: '${{ github.event.inputs.BUILD_TITLE_APOLLO_KSUNEXT }}',
@@ -76,7 +76,7 @@ jobs:
             await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              workflow_id: 'Kernel Build (apollo) - SUSFS + KSU NEXT clang-r547379.yml',
+              workflow_id: 'apollo-susfs.yml',
               ref: 'main',
               inputs: {
                 BUILD_TITLE: '${{ github.event.inputs.BUILD_TITLE_APOLLO_SUSFS }}',
