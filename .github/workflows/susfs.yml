@@ -84,7 +84,7 @@ jobs:
 
     - name: Initialize workspace
       run: |
-        mkdir -p workspace
+        mkdir workspace
         cd workspace
         echo "workspace-folder=$(pwd)" >> $GITHUB_OUTPUT
         echo "start_time=$(date +%s)" >> $GITHUB_OUTPUT
@@ -93,12 +93,11 @@ jobs:
 
     - name: Prepare the build environment
       run: |
-        sudo apt update
-        sudo apt install -y flex libncurses-dev bc bison build-essential
+        sudo apt install flex -y && sudo apt install libncurses6 -y
         wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz -O clang.tar.gz
-        mkdir -p clang
+        mkdir clang
         tar -xf clang.tar.gz -C clang
-        echo "tools-folder=$(pwd)/clang" >> $GITHUB_OUTPUT
+        echo "tools-folder=$(pwd)" >> $GITHUB_OUTPUT
       working-directory: ${{ steps.workspace.outputs.workspace-folder }}
       id: tools
 
@@ -117,8 +116,8 @@ jobs:
         export SUBARCH=ARM64
         export KBUILD_BUILD_USER="aliza"
         export KBUILD_BUILD_HOST="Github"
-        make O=out vendor/alioth_defconfig PATH="${{ steps.tools.outputs.tools-folder }}/bin:$PATH"
-        make O=out CC=clang -j$(nproc --all) PATH="${{ steps.tools.outputs.tools-folder }}/bin:$PATH" CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
+        make O=out vendor/alioth_defconfig PATH="${{ steps.tools.outputs.tools-folder }}/clang/bin:$PATH"
+        make O=out CC=clang -j$(nproc --all) PATH="${{ steps.tools.outputs.tools-folder }}/clang/bin:$PATH" CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
         echo "elapsed_time=$(echo "$(date +%s)"-"${{ steps.workspace.outputs.start_time }}" | bc)" >> $GITHUB_OUTPUT
       working-directory: ${{ steps.kernel.outputs.kernel-folder }}
       id: build
