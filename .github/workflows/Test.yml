@@ -1,7 +1,6 @@
-name: Kernel Build (alioth) - SUSFS + KSU NEXT | clang-r547379
+name: Kernel Build Debug (alioth) - SUSFS + KSU NEXT | clang-r547379
 
 on:
-  pull_request:
   workflow_dispatch:
     inputs:
       BUILD_TITLE:
@@ -52,18 +51,6 @@ jobs:
         build_date=$(date +"%Y%m%d")  # Only date, no time
         echo "build_date=$build_date" >> $GITHUB_OUTPUT
 
-    - name: Notify Build Start
-      uses: appleboy/telegram-action@master
-      with:
-        to: ${{ secrets.TELEGRAM_CHAT_ID }}
-        token: ${{ secrets.TELEGRAM_TOKEN }}
-        format: markdown
-        message: |
-          🚀 Kernel Build Started for `${{ github.event.inputs.CODENAME }}`
-          🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          📦 Build Title: `${{ github.event.inputs.BUILD_TITLE || github.event.inputs.CODENAME }}`
-          🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
-
     - name: Initialize workspace
       run: |
         mkdir workspace
@@ -73,52 +60,42 @@ jobs:
         echo "build_title=${{ github.event.inputs.BUILD_TITLE || github.event.inputs.CODENAME }}" >> $GITHUB_OUTPUT
       id: workspace
 
-    - name: Prepare the build environment
+    - name: Mock Prepare the build environment
       run: |
-        sudo apt install flex -y && sudo apt install libncurses6 -y
-        wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz -O clang.tar.gz
-        mkdir clang
-        tar -xf clang.tar.gz -C clang
+        echo "Mocking build environment setup..."
+        mkdir -p clang/bin
         echo "tools-folder=$(pwd)" >> $GITHUB_OUTPUT
       working-directory: ${{ steps.workspace.outputs.workspace-folder }}
       id: tools
 
-    - name: Clone kernel source
+    - name: Mock Clone kernel source
       run: |
-        git clone --depth=1 ${{ github.event.inputs.KERNEL_TREE }} -b ${{ github.event.inputs.KERNEL_TREE_BRANCH }} kernel_tree
+        echo "Mocking kernel source clone..."
+        mkdir -p kernel_tree
         echo "kernel-folder=$(pwd)/kernel_tree" >> $GITHUB_OUTPUT
       working-directory: ${{ steps.workspace.outputs.workspace-folder }}
       id: kernel
 
-    - name: Building kernel
+    - name: Mock Building kernel
       run: |
-        curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
-        cp -rf "0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch" KernelSU-Next && cd ./KernelSU-Next && patch -p1 -f < "0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch" && cd ..
-        export ARCH=arm64
-        export SUBARCH=ARM64
-        export KBUILD_BUILD_USER="aliza"
-        export KBUILD_BUILD_HOST="Github"
-        make O=out vendor/alioth_defconfig PATH="${{ steps.tools.outputs.tools-folder }}/clang/bin:$PATH"
-        make O=out CC=clang -j$(nproc --all) PATH="${{ steps.tools.outputs.tools-folder }}/clang/bin:$PATH" CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
-        echo "elapsed_time=$(echo "$(date +%s)"-"${{ steps.workspace.outputs.start_time }}" | bc)" >> $GITHUB_OUTPUT
+        echo "Mocking kernel build..."
+        mkdir -p out/arch/arm64/boot
+        touch out/arch/arm64/boot/Image.gz
+        touch out/arch/arm64/boot/dtb.img
+        touch out/arch/arm64/boot/dtbo.img
+        echo "elapsed_time=120" >> $GITHUB_OUTPUT  # Mocked elapsed time
       working-directory: ${{ steps.kernel.outputs.kernel-folder }}
       id: build
 
-    - name: AnyKernel3
+    - name: Mock AnyKernel3
       if: success()
       run: |
-        git clone --recursive --depth=1 https://github.com/AlirezaParsi/F3aosp -b main AnyKernel3
-        if [ -e "Image.gz" ]; then
-          cp -f Image.gz AnyKernel3
-        fi
-        if [ -e "dtb.img" ]; then
-          mv -f dtb.img dtb
-          cp -f dtb AnyKernel3/dtb
-        fi
-        if [ -e "dtbo.img" ]; then
-          cp -f dtbo.img AnyKernel3
-        fi
-        build_date=$(date +"%Y%m%d-%H%M%S")  # Date and time for ZIP filename
+        echo "Mocking AnyKernel3..."
+        mkdir -p AnyKernel3
+        touch AnyKernel3/Image.gz
+        touch AnyKernel3/dtb
+        touch AnyKernel3/dtbo.img
+        build_date=$(date +"%Y%m%d-%H%M%S")
         name=N0kernel-AOSP-KSUNEXT-SUSFS-${{ github.event.inputs.CODENAME }}-$build_date.zip
         cd AnyKernel3
         zip -q -r $name *
@@ -127,17 +104,14 @@ jobs:
       working-directory: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/
       id: anykernel
 
-    - name: Second AnyKernel3
+    - name: Mock Second AnyKernel3
       if: success()
       run: |
-        git clone --recursive --depth=1 https://github.com/AlirezaParsi/hyperf3 -b main SecondAnyKernel
-        if [ -e "Image.gz" ]; then
-          cp -f Image.gz SecondAnyKernel
-        fi
-        if [ -e "dtb" ]; then
-          cp -f dtb SecondAnyKernel/dtb
-        fi
-        build_date=$(date +"%Y%m%d-%H%M%S")  # Date and time for ZIP filename
+        echo "Mocking Second AnyKernel3..."
+        mkdir -p SecondAnyKernel
+        touch SecondAnyKernel/Image.gz
+        touch SecondAnyKernel/dtb
+        build_date=$(date +"%Y%m%d-%H%M%S")
         second_name=N0kernel-HYPEROS-KSUNEXT-SUSFS-${{ github.event.inputs.CODENAME }}-$build_date.zip
         cd SecondAnyKernel
         zip -q -r $second_name *
@@ -146,7 +120,7 @@ jobs:
       working-directory: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/
       id: second_anykernel
 
-    - name: Upload to Release
+    - name: Upload to Release (Mocked)
       if: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' }}
       uses: softprops/action-gh-release@v2
       with:
@@ -164,14 +138,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       id: upload_release
 
-    - name: Generate Download Link
-      if: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' }}
-      id: generate_link
-      run: |
-        download_link="${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}"
-        echo "download_link=$download_link" >> $GITHUB_OUTPUT
-
-    - name: Upload AnyKernel ZIP to Telegram
+    - name: Upload AnyKernel ZIP to Telegram (Mocked)
       if: success()
       uses: appleboy/telegram-action@master
       with:
@@ -179,7 +146,7 @@ jobs:
         token: ${{ secrets.TELEGRAM_TOKEN }}
         document: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}
 
-    - name: Upload Second AnyKernel ZIP to Telegram
+    - name: Upload Second AnyKernel ZIP to Telegram (Mocked)
       if: success()
       uses: appleboy/telegram-action@master
       with:
@@ -202,7 +169,7 @@ jobs:
           📄 Files:
           - `${{ steps.anykernel.outputs.zipname }}`
           - `${{ steps.second_anykernel.outputs.second_zipname }}`
-          ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && format('📥 [Download Release]({})', steps.generate_link.outputs.download_link) || '' }}
+          📥 Download Link: [Release ${{ steps.build_date.outputs.build_date }}](${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }})
 
     - name: Notify Build Failure
       if: failure()
