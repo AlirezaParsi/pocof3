@@ -150,21 +150,19 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       id: upload_release
 
-    - name: Upload AnyKernel ZIP to Telegram
+    - name: Upload AnyKernel ZIP to Telegram using curl
       if: success()
-      uses: appleboy/telegram-action@master
-      with:
-        to: ${{ secrets.TELEGRAM_CHAT_ID }}
-        token: ${{ secrets.TELEGRAM_TOKEN }}
-        document: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}
+      run: |
+        curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+             -F document=@"${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}" \
+             https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument
 
-    - name: Upload Second AnyKernel ZIP to Telegram
+    - name: Upload Second AnyKernel ZIP to Telegram using curl
       if: success()
-      uses: appleboy/telegram-action@master
-      with:
-        to: ${{ secrets.TELEGRAM_CHAT_ID }}
-        token: ${{ secrets.TELEGRAM_TOKEN }}
-        document: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.second_anykernel.outputs.second_zipname }}
+      run: |
+        curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+             -F document=@"${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.second_anykernel.outputs.second_zipname }}" \
+             https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument
 
     - name: Send Success Notification with Both Files
       if: success()
