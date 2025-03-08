@@ -145,6 +145,7 @@ jobs:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
         token: ${{ secrets.TELEGRAM_TOKEN }}
         document: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}
+        silent: true  # Suppress the initial message
 
     - name: Upload Second AnyKernel ZIP to Telegram (Mocked)
       if: success()
@@ -153,6 +154,7 @@ jobs:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
         token: ${{ secrets.TELEGRAM_TOKEN }}
         document: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.second_anykernel.outputs.second_zipname }}
+        silent: true  # Suppress the initial message
 
     - name: Send Success Notification with Both Files
       if: success()
