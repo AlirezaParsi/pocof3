@@ -1,4 +1,4 @@
-name: Kernel Build (alioth) - KSUNEXT ONLY | clang-r547379
+name: Kernel Build - alioth 
 
 on:
   pull_request:
@@ -93,7 +93,6 @@ jobs:
 
     - name: Building kernel
       run: |
-        rm -rf KernelSU-Next
         curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
         export ARCH=arm64
         export SUBARCH=ARM64
@@ -194,7 +193,7 @@ jobs:
           📄 Files:
           - `${{ steps.anykernel.outputs.zipname }}`
           - `${{ steps.second_anykernel.outputs.second_zipname }}`
-          📥 Download Link: [Release ${{ steps.build_date.outputs.build_date }}](${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }})
+          ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && format('📥 Download Link: [Release {}]({}/{}/releases/tag/{}-{})', steps.build_date.outputs.build_date, github.server_url, github.repository, github.event.inputs.CODENAME, steps.build_date.outputs.build_date) || '' }}
 
     - name: Notify Build Failure
       if: failure()
