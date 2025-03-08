@@ -150,6 +150,14 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       id: upload_release
 
+    - name: Save Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: kernel-build-artifacts
+        path: |
+          ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}
+          ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.second_anykernel.outputs.second_zipname }}
+
     - name: Send Success Notification with Both Files
       if: success()
       uses: appleboy/telegram-action@master
@@ -203,6 +211,7 @@ jobs:
     - name: Download Artifacts from Build Job
       uses: actions/download-artifact@v3
       with:
+        name: kernel-build-artifacts
         path: artifacts
 
     - name: Upload AnyKernel ZIP to Telegram
