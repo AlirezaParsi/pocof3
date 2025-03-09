@@ -1,4 +1,4 @@
-# N0Kernel Fork
+# ALP Kernel
 
 [![Kernel Version](https://img.shields.io/badge/Kernel-4.19-blue.svg)](https://github.com/AlirezaParsi/n0kernel)
 [![Telegram Channel](https://img.shields.io/badge/Telegram-Channel-blue.svg)](https://t.me/Alizashub)
