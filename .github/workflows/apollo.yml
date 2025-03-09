@@ -57,12 +57,14 @@ jobs:
       with:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
         token: ${{ secrets.TELEGRAM_TOKEN }}
-        format: markdown
+        format: html
         message: |
-          🚀 Kernel Build Started for `${{ github.event.inputs.CODENAME }}`
-          🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          📦 Build Title: `${{ github.event.inputs.BUILD_TITLE || github.event.inputs.CODENAME }}`
-          🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
+          <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Apollo-logo.jpg">‌</a> <b>Kernel Build Started</b> 🚀
+          🔧 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Run</a>
+          <b>📦 Build Title</b>: <code>${{ github.event.inputs.BUILD_TITLE || github.event.inputs.CODENAME }}</code>
+          <b>📱 Device Codename</b>: <code>${{ github.event.inputs.CODENAME }}</code>
+          <b>🏷️ Build Type</b>: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
+          <b>📄 Workflow File</b>: ${{ github.workflow }}.yml
 
     - name: Initialize workspace
       run: |
@@ -76,7 +78,7 @@ jobs:
     - name: Prepare the build environment
       run: |
         sudo apt update -y
-        sudo apt install -y flex bison libncurses-dev libssl-dev bc build-essential git
+        sudo apt install -y flex bison libncurses-dev libssl-dev bc build-essential git imagemagick
         wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz -O clang.tar.gz
         mkdir clang
         tar -xf clang.tar.gz -C clang
@@ -104,6 +106,27 @@ jobs:
         echo "elapsed_time=$(echo "$(date +%s)"-"${{ steps.workspace.outputs.start_time }}" | bc)" >> $GITHUB_OUTPUT
       working-directory: ${{ steps.kernel.outputs.kernel-folder }}
       id: build
+
+    - name: Download and Prepare Thumbnails
+      run: |
+        # Download the logo
+        curl -o logo.png "https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Apollo-logo.jpg"
+
+        # Download the AOSP thumbnail
+        curl -o aosp_thumbnail.jpg "https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Picsart_25-03-10_00-13-54-295.jpg"
+
+        # Download the HyperOS thumbnail
+        curl -o hyperos_thumbnail.jpg "https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Picsart_25-03-10_00-14-54-641.jpg"
+
+        # Resize and convert the AOSP thumbnail to meet Telegram's requirements
+        convert aosp_thumbnail.jpg -resize 320x320 -quality 80 -format jpg aosp_thumbnail.jpg
+
+        # Resize and convert the HyperOS thumbnail to meet Telegram's requirements
+        convert hyperos_thumbnail.jpg -resize 320x320 -quality 80 -format jpg hyperos_thumbnail.jpg
+
+        # Debug: Check the size and dimensions of the thumbnails
+        identify aosp_thumbnail.jpg
+        identify hyperos_thumbnail.jpg
 
     - name: AnyKernel3
       if: success()
@@ -157,26 +180,31 @@ jobs:
         name: ${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}
         tag_name: ${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}
         body: |
+          <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Apollo-logo.jpg">‌</a> <b>Kernel Build Succeeded</b> ✅
           <b>${{ steps.workspace.outputs.build_title }}</b>
           <b>Kernel successfully built!</b>, took ${{ steps.build.outputs.elapsed_time }} seconds.
+          <b>📱 Device Codename</b>: <code>${{ github.event.inputs.CODENAME }}</code>
           <b>Kernel tree</b>: ${{ github.event.inputs.KERNEL_TREE }}/tree/${{ github.event.inputs.KERNEL_TREE_BRANCH }}
           <b>Action</b>: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          <b>Workflow File</b>: ${{ github.workflow }}.yml
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       id: upload_release
 
-    - name: Upload AnyKernel ZIP to Telegram using curl
+    - name: Upload AnyKernel ZIP to Telegram with AOSP Thumbnail
       if: success()
       run: |
         curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
              -F document=@"${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}" \
+             -F thumb=@"aosp_thumbnail.jpg" \
              https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument
 
-    - name: Upload Second AnyKernel ZIP to Telegram using curl
+    - name: Upload Second AnyKernel ZIP to Telegram with HyperOS Thumbnail
       if: success()
       run: |
         curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
              -F document=@"${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.second_anykernel.outputs.second_zipname }}" \
+             -F thumb=@"hyperos_thumbnail.jpg" \
              https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument
 
     - name: Send Success Notification with Both Files
@@ -185,16 +213,17 @@ jobs:
       with:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
         token: ${{ secrets.TELEGRAM_TOKEN }}
-        format: markdown
+        format: html
         message: |
-          ✅ Kernel Build Succeeded for `${{ github.event.inputs.CODENAME }}`
-          🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
-          🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
-          📄 Files:
-          - `${{ steps.anykernel.outputs.zipname }}`
-          - `${{ steps.second_anykernel.outputs.second_zipname }}`
-          ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && format('📥 Download Link: [Release {0}]({1}/{2}/releases/tag/{3}-{4})', steps.build_date.outputs.build_date, github.server_url, github.repository, github.event.inputs.CODENAME, steps.build_date.outputs.build_date) || '' }}
+          <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Apollo-logo.jpg">‌</a> <b>Kernel Build Succeeded</b> ✅
+          🔧 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Run</a>
+          <b>📦 Build Title</b>: <code>${{ steps.workspace.outputs.build_title }}</code>
+          <b>📱 Device Codename</b>: <code>${{ github.event.inputs.CODENAME }}</code>
+          <b>🏷️ Build Type</b>: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
+          <b>📄 Files</b>:
+          - <code>${{ steps.anykernel.outputs.zipname }}</code>
+          - <code>${{ steps.second_anykernel.outputs.second_zipname }}</code>
+          ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && format('📥 <b>Download Link</b>: <a href="{1}/{2}/releases/tag/{3}-{4}">Release {0}</a>', steps.build_date.outputs.build_date, github.server_url, github.repository, github.event.inputs.CODENAME, steps.build_date.outputs.build_date) || '' }}
 
     - name: Notify Build Failure
       if: failure()
@@ -202,13 +231,15 @@ jobs:
       with:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
         token: ${{ secrets.TELEGRAM_TOKEN }}
-        format: markdown
+        format: html
         message: |
-          ❌ Kernel Build Failed for `${{ github.event.inputs.CODENAME }}`
-          🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          ⏱️ Elapsed Time: `${{ steps.build.outputs.elapsed_time }}` seconds
-          📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
-          🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
+          <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Apollo-logo.jpg">‌</a> <b>Kernel Build Failed</b> ❌
+          🔧 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Run</a>
+          <b>⏱️ Elapsed Time</b>: <code>${{ steps.build.outputs.elapsed_time }}</code> seconds
+          <b>📦 Build Title</b>: <code>${{ steps.workspace.outputs.build_title }}</code>
+          <b>📱 Device Codename</b>: <code>${{ github.event.inputs.CODENAME }}</code>
+          <b>🏷️ Build Type</b>: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
+          <b>📄 Workflow File</b>: ${{ github.workflow }}.yml
 
     - name: Notify Build Canceled
       if: cancelled()
@@ -216,13 +247,15 @@ jobs:
       with:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
         token: ${{ secrets.TELEGRAM_TOKEN }}
-        format: markdown
+        format: html
         message: |
-          🚫 Kernel Build Canceled for `${{ github.event.inputs.CODENAME }}`
-          🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
-          🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
-          👤 Canceled by: ${{ github.actor && format('[{}]({}/{})', github.actor, github.server_url, github.actor) || 'GitHub System' }}
+          <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Apollo-logo.jpg">‌</a> <b>Kernel Build Canceled</b> 🚫
+          🔧 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Run</a>
+          <b>📦 Build Title</b>: <code>${{ steps.workspace.outputs.build_title }}</code>
+          <b>📱 Device Codename</b>: <code>${{ github.event.inputs.CODENAME }}</code>
+          <b>🏷️ Build Type</b>: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
+          <b>📄 Workflow File</b>: ${{ github.workflow }}.yml
+          <b>👤 Canceled by</b>: <a href="${{ github.server_url }}/${{ github.actor }}">${{ github.actor }}</a>
 
     - uses: actions/upload-artifact@v4
       if: ${{ success() && github.event.inputs.UPLOAD_TO_RELEASE != 'true' }}
