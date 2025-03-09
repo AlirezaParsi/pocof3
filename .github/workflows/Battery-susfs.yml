@@ -1,4 +1,4 @@
-name: Kernel Build - SBattery 4500 mAh SUSFS
+name: KernelBuild-Battery4500mAh-SUSFS
 
 on:
   workflow_dispatch:
