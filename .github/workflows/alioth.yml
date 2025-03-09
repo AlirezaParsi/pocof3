@@ -226,7 +226,7 @@ jobs:
           📦 Build Title: `${{ steps.workspace.outputs.build_title }}`
           🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
           📄 Workflow File: `${{ github.workflow }}.yml`
-          👤 Canceled by: ${{ github.actor && format('[{}]({}/{})', github.actor, github.server_url, github.actor) || 'GitHub System' }}
+          👤 Canceled by: [${{ github.actor }}](${{ github.server_url }}/${{ github.actor }})
 
     - uses: actions/upload-artifact@v4
       if: ${{ success() && github.event.inputs.UPLOAD_TO_RELEASE != 'true' }}
