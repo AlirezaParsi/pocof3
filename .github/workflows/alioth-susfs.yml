@@ -1,4 +1,4 @@
-name: Kernel Build - alioth SUSFS
+name: KernelBuild-alioth-SUSFS
 
 on:
   workflow_dispatch:
