@@ -62,8 +62,9 @@ jobs:
           <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg">‌</a> <b>Kernel Build Started</b> 🚀
           🔧 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Run</a>
           <b>📦 Build Title</b>: <code>${{ github.event.inputs.BUILD_TITLE || github.event.inputs.CODENAME }}</code>
+          <b>📱 Device Codename</b>: <code>${{ github.event.inputs.CODENAME }}</code>
           <b>🏷️ Build Type</b>: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
-          <b>📄 Workflow File</b>: <code>${{ github.workflow }}.yml</code>
+          <b>📄 Workflow File</b>: ${{ github.workflow }}.yml
 
     - name: Initialize workspace
       run: |
@@ -160,9 +161,10 @@ jobs:
           <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg">‌</a> <b>Kernel Build Succeeded</b> ✅
           <b>${{ steps.workspace.outputs.build_title }}</b>
           <b>Kernel successfully built!</b>, took ${{ steps.build.outputs.elapsed_time }} seconds.
+          <b>📱 Device Codename</b>: <code>${{ github.event.inputs.CODENAME }}</code>
           <b>Kernel tree</b>: ${{ github.event.inputs.KERNEL_TREE }}/tree/${{ github.event.inputs.KERNEL_TREE_BRANCH }}
           <b>Action</b>: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          <b>Workflow File</b>: <code>${{ github.workflow }}.yml</code>
+          <b>Workflow File</b>: ${{ github.workflow }}.yml
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       id: upload_release
@@ -192,6 +194,7 @@ jobs:
           <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg">‌</a> <b>Kernel Build Succeeded</b> ✅
           🔧 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Run</a>
           <b>📦 Build Title</b>: <code>${{ steps.workspace.outputs.build_title }}</code>
+          <b>📱 Device Codename</b>: <code>${{ github.event.inputs.CODENAME }}</code>
           <b>🏷️ Build Type</b>: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
           <b>📄 Files</b>:
           - <code>${{ steps.anykernel.outputs.zipname }}</code>
@@ -210,8 +213,9 @@ jobs:
           🔧 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Run</a>
           <b>⏱️ Elapsed Time</b>: <code>${{ steps.build.outputs.elapsed_time }}</code> seconds
           <b>📦 Build Title</b>: <code>${{ steps.workspace.outputs.build_title }}</code>
+          <b>📱 Device Codename</b>: <code>${{ github.event.inputs.CODENAME }}</code>
           <b>🏷️ Build Type</b>: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
-          <b>📄 Workflow File</b>: <code>${{ github.workflow }}.yml</code>
+          <b>📄 Workflow File</b>: ${{ github.workflow }}.yml
 
     - name: Notify Build Canceled
       if: cancelled()
@@ -224,8 +228,9 @@ jobs:
           <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg">‌</a> <b>Kernel Build Canceled</b> 🚫
           🔧 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Run</a>
           <b>📦 Build Title</b>: <code>${{ steps.workspace.outputs.build_title }}</code>
+          <b>📱 Device Codename</b>: <code>${{ github.event.inputs.CODENAME }}</code>
           <b>🏷️ Build Type</b>: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
-          <b>📄 Workflow File</b>: <code>${{ github.workflow }}.yml</code>
+          <b>📄 Workflow File</b>: ${{ github.workflow }}.yml
           <b>👤 Canceled by</b>: <a href="${{ github.server_url }}/${{ github.actor }}">${{ github.actor }}</a>
 
     - uses: actions/upload-artifact@v4
