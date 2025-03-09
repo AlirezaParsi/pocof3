@@ -59,7 +59,7 @@ jobs:
         token: ${{ secrets.TELEGRAM_TOKEN }}
         format: markdown
         message: |
-          ![‌](https://t.me/ALPkernel/3) **Kernel Build Started** 🚀
+          [‌](https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg) **Kernel Build Started** 🚀
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           📦 **Build Title**: `${{ github.event.inputs.BUILD_TITLE || github.event.inputs.CODENAME }}`
           🏷️ **Build Type**: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
@@ -157,7 +157,7 @@ jobs:
         name: ${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}
         tag_name: ${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}
         body: |
-          ![‌](https://t.me/ALPkernel/3) **Kernel Build Succeeded** ✅
+          [‌](https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg) **Kernel Build Succeeded** ✅
           <b>${{ steps.workspace.outputs.build_title }}</b>
           <b>Kernel successfully built!</b>, took ${{ steps.build.outputs.elapsed_time }} seconds.
           <b>Kernel tree</b>: ${{ github.event.inputs.KERNEL_TREE }}/tree/${{ github.event.inputs.KERNEL_TREE_BRANCH }}
@@ -189,7 +189,7 @@ jobs:
         token: ${{ secrets.TELEGRAM_TOKEN }}
         format: markdown
         message: |
-          ![‌](https://t.me/ALPkernel/3) **Kernel Build Succeeded** ✅
+          [‌](https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg) **Kernel Build Succeeded** ✅
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           📦 **Build Title**: `${{ steps.workspace.outputs.build_title }}`
           🏷️ **Build Type**: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
@@ -207,7 +207,7 @@ jobs:
         token: ${{ secrets.TELEGRAM_TOKEN }}
         format: markdown
         message: |
-          ![‌](https://t.me/ALPkernel/3) **Kernel Build Failed** ❌
+          [‌](https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg) **Kernel Build Failed** ❌
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           ⏱️ **Elapsed Time**: `${{ steps.build.outputs.elapsed_time }}` seconds
           📦 **Build Title**: `${{ steps.workspace.outputs.build_title }}`
@@ -222,7 +222,7 @@ jobs:
         token: ${{ secrets.TELEGRAM_TOKEN }}
         format: markdown
         message: |
-          ![‌](https://t.me/ALPkernel/3) **Kernel Build Canceled** 🚫
+          [‌](https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg) **Kernel Build Canceled** 🚫
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           📦 **Build Title**: `${{ steps.workspace.outputs.build_title }}`
           🏷️ **Build Type**: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
