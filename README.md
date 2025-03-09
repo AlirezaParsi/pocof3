@@ -5,7 +5,7 @@
 [![Telegram Group](https://img.shields.io/badge/Telegram-Group-blue.svg)](https://t.me/TheAOSP)
 [![License](https://img.shields.io/badge/License-GPLv3-green.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-Welcome to **N0Kernel Fork**, a custom kernel designed to enhance your Android experience with performance optimizations, battery improvements, and cutting-edge features. Built on Linux Kernel **4.19**, N0Kernel is tailored for stability, speed, and customization.
+Welcome to **ALP Kernel**, a custom kernel designed to enhance your Android experience with performance optimizations, battery improvements, and cutting-edge features. Built on Linux Kernel **4.19**, ALP Kernel is tailored for stability, speed, and customization.
 
 ---
 ## 📑 **Table of Contents**
@@ -50,9 +50,9 @@ Welcome to **N0Kernel Fork**, a custom kernel designed to enhance your Android e
 - Backup your data (just in case).
 
 ### Steps
-1. Download the latest N0Kernel zip file from the [Releases](https://github.com/AlirezaParsi/pocof3/releases) section.
+1. Download the latest ALP Kernel zip file from the [Releases](https://github.com/AlirezaParsi/pocof3/releases) section.
 2. Boot into recovery mode.
-3. Flash the N0Kernel zip file.
+3. Flash the ALP Kernel zip file.
 4. Wipe cache and Dalvik cache (optional but recommended).
 5. Reboot and enjoy!
 
@@ -70,7 +70,7 @@ If you have any questions, issues, or suggestions, feel free to reach out:
 
 ## 💻 **Contributing**
 
-We welcome contributions! If you'd like to contribute to N0Kernel, please follow these steps:
+We welcome contributions! If you'd like to contribute to ALP Kernel, please follow these steps:
 
 1. Fork the repository.
 2. Create a new branch (`git checkout -b feature/YourFeature`).
@@ -82,7 +82,7 @@ We welcome contributions! If you'd like to contribute to N0Kernel, please follow
 
 ## 📜 **License**
 
-N0Kernel is licensed under the **GNU General Public License v3 (GPLv3)**.  
+ALP Kernel is licensed under the **GNU General Public License v3 (GPLv3)**.  
 For more details, see the [LICENSE](LICENSE) file.
 
 ---
@@ -100,11 +100,11 @@ For more details, see the [LICENSE](LICENSE) file.
 ---
 ## ❤️ **Support My Work**
 
-If you enjoy using N0Kernel Fork and want to support my work, consider:
+If you enjoy using ALPKernel Fork and want to support my work, consider:
 
 - Starring this repository ⭐
 - Joining my [Telegram Channel](https://t.me/Alizashub) and [Group](https://t.me/TheAOSP)  
 
 ---
 
-**Thank you for choosing N0Kernel!** 🚀
+**Thank you for choosing ALPKernel!** 🚀
