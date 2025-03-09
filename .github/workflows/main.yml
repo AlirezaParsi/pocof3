@@ -57,7 +57,7 @@ jobs:
       with:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
         token: ${{ secrets.TELEGRAM_TOKEN }}
-        format: markdown
+        format: markdownv2
         message: |
           [‌](https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg) **Kernel Build Started** 🚀
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
@@ -159,7 +159,7 @@ jobs:
         body: |
           [‌](https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg) **Kernel Build Succeeded** ✅
           **${{ steps.workspace.outputs.build_title }}**
-          **Kernel successfully built!**, took ${{ steps.build.outputs.elapsed_time }} seconds.
+          **Kernel successfully built\!**, took ${{ steps.build.outputs.elapsed_time }} seconds\.
           **Kernel tree**: ${{ github.event.inputs.KERNEL_TREE }}/tree/${{ github.event.inputs.KERNEL_TREE_BRANCH }}
           **Action**: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           **Workflow File**: `${{ github.workflow }}.yml`
@@ -187,15 +187,15 @@ jobs:
       with:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
         token: ${{ secrets.TELEGRAM_TOKEN }}
-        format: markdown
+        format: markdownv2
         message: |
           [‌](https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg) **Kernel Build Succeeded** ✅
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           **📦 Build Title**: `${{ steps.workspace.outputs.build_title }}`
           **🏷️ Build Type**: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
           **📄 Files**:
-          - `${{ steps.anykernel.outputs.zipname }}`
-          - `${{ steps.second_anykernel.outputs.second_zipname }}`
+          \- `${{ steps.anykernel.outputs.zipname }}`
+          \- `${{ steps.second_anykernel.outputs.second_zipname }}`
           ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && format('📥 **Download Link**: [Release {0}]({1}/{2}/releases/tag/{3}-{4})', steps.build_date.outputs.build_date, github.server_url, github.repository, github.event.inputs.CODENAME, steps.build_date.outputs.build_date) || '' }}
 
     - name: Notify Build Failure
@@ -204,7 +204,7 @@ jobs:
       with:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
         token: ${{ secrets.TELEGRAM_TOKEN }}
-        format: markdown
+        format: markdownv2
         message: |
           [‌](https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg) **Kernel Build Failed** ❌
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
@@ -219,7 +219,7 @@ jobs:
       with:
         to: ${{ secrets.TELEGRAM_CHAT_ID }}
         token: ${{ secrets.TELEGRAM_TOKEN }}
-        format: markdown
+        format: markdownv2
         message: |
           [‌](https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg) **Kernel Build Canceled** 🚫
           🔧 [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
