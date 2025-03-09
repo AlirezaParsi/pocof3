@@ -1,4 +1,4 @@
-name: Kernel Build - apollo
+name: KernelBuild-apollo
 
 on:
   pull_request:
