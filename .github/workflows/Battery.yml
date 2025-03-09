@@ -153,8 +153,8 @@ jobs:
         files: |
           ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}
           ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.second_anykernel.outputs.second_zipname }}
-        name: ${{ github.event.inputs.CODENAME }}-Battery-${{ steps.build_date.outputs.build_date }}
-        tag_name: ${{ github.event.inputs.CODENAME }}-Battery-${{ steps.build_date.outputs.build_date }}
+        name: ${{ github.event.inputs.CODENAME }}-battery-${{ steps.build_date.outputs.build_date }}
+        tag_name: ${{ github.event.inputs.CODENAME }}-battery-${{ steps.build_date.outputs.build_date }}
         body: |
           <b>${{ steps.workspace.outputs.build_title }}</b>
           <b>Kernel successfully built!</b>, took ${{ steps.build.outputs.elapsed_time }} seconds.
