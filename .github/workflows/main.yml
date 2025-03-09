@@ -78,7 +78,7 @@ jobs:
     - name: Prepare the build environment
       run: |
         sudo apt update -y
-        sudo apt install -y flex bison libncurses-dev libssl-dev bc build-essential git
+        sudo apt install -y flex bison libncurses-dev libssl-dev bc build-essential git imagemagick
         wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz -O clang.tar.gz
         mkdir clang
         tar -xf clang.tar.gz -C clang
@@ -105,6 +105,17 @@ jobs:
         echo "elapsed_time=$(echo "$(date +%s)"-"${{ steps.workspace.outputs.start_time }}" | bc)" >> $GITHUB_OUTPUT
       working-directory: ${{ steps.kernel.outputs.kernel-folder }}
       id: build
+
+    - name: Download and Prepare Thumbnail
+      run: |
+        # Download the image
+        curl -o logo.png "https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg"
+
+        # Resize and convert the image to meet Telegram's requirements
+        convert logo.png -resize 320x320 -quality 80 -format jpg thumbnail.jpg
+
+        # Debug: Check the size and dimensions of the thumbnail
+        identify thumbnail.jpg
 
     - name: AnyKernel3
       if: success()
@@ -169,28 +180,20 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       id: upload_release
 
-    - name: Upload AnyKernel ZIP to Telegram using curl
+    - name: Upload AnyKernel ZIP to Telegram with Thumbnail
       if: success()
       run: |
         curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
              -F document=@"${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}" \
-             -F thumb="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg" \
-             -F caption="📦 Build Title: ${{ steps.workspace.outputs.build_title }}
-📱 Device Codename: ${{ github.event.inputs.CODENAME }}
-🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
-📄 File: ${{ steps.anykernel.outputs.zipname }}" \
+             -F thumb=@"thumbnail.jpg" \
              https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument
 
-    - name: Upload Second AnyKernel ZIP to Telegram using curl
+    - name: Upload Second AnyKernel ZIP to Telegram with Thumbnail
       if: success()
       run: |
         curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
              -F document=@"${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.second_anykernel.outputs.second_zipname }}" \
-             -F thumb="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg" \
-             -F caption="📦 Build Title: ${{ steps.workspace.outputs.build_title }}
-📱 Device Codename: ${{ github.event.inputs.CODENAME }}
-🏷️ Build Type: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && 'Release Build' || 'CI Build' }}
-📄 File: ${{ steps.second_anykernel.outputs.second_zipname }}" \
+             -F thumb=@"thumbnail.jpg" \
              https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument
 
     - name: Send Success Notification with Both Files
