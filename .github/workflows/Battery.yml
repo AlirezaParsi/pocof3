@@ -1,4 +1,4 @@
-name: Kernel-Build-Battery-4500-mAh-alioth
+name: KernelBuild-Battery4500mAh
 
 on:
   pull_request:
