@@ -1,4 +1,4 @@
-name: Kernel Build - alioth
+name: KernelBuild-alioth
 
 on:
   pull_request:
