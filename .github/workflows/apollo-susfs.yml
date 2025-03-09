@@ -1,4 +1,4 @@
-name: Kernel Build - apollo SUSFS
+name: KernelBuild-apollo-SUSFS
 
 on:
   pull_request:
