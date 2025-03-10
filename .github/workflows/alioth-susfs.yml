@@ -109,10 +109,10 @@ jobs:
     - name: Download and Prepare Thumbnails
       run: |
         # Download AOSP thumbnail
-        curl -o aosp_thumbnail.jpg "https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Picsart_25-03-10_00-08-19-334.jpg"
+        curl -o aosp_thumbnail.jpg "https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/thumbnail-susfs-aosp.jpg"
 
         # Download HyperOS thumbnail
-        curl -o hyperos_thumbnail.jpg "https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Picsart_25-03-10_00-07-35-977.jpg"
+        curl -o hyperos_thumbnail.jpg "https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/thumbnail-susfs-hyper.jpg"
 
         # Resize and convert the AOSP thumbnail to meet Telegram's requirements
         convert aosp_thumbnail.jpg -resize 320x320 -quality 80 -format jpg aosp_thumbnail.jpg
