@@ -59,7 +59,7 @@ jobs:
         token: ${{ secrets.TELEGRAM_TOKEN }}
         format: html
         message: |
-          <a href=""https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Picsart_25-03-10_00-15-43-611.jpg>‌</a> <b>Kernel Build Started</b> 🚀
+          <a href=""https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Picsart_25-03-10_00-15-43-611.jpg">‌</a> <b>Kernel Build Started</b> 🚀
           🔧 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Run</a>
           <b>📦 Build Title</b>: <code>${{ github.event.inputs.BUILD_TITLE || github.event.inputs.CODENAME }}</code>
           <b>📱 Device Codename</b>: <code>${{ github.event.inputs.CODENAME }}</code>
