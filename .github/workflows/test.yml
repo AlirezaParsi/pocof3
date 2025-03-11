@@ -126,10 +126,12 @@ jobs:
         fi
         if [ -e "dtb.img" ]; then
           mv -f dtb.img dtb
-          cp -f dtb AnyKernel3/-5000-dtb
+          cp -f dtb -5000-dtb
+          cp -f -5000-dtb AnyKernel3/-5000-dtb
         fi
         if [ -e "dtbo.img" ]; then
-          cp -f dtbo.img AnyKernel3
+          cp -f dtbo.img aosp-dtbo.img
+          cp -f aosp-dtbo.img AnyKernel3
         fi
         build_date=$(date +"%Y%m%d-%H%M%S")  # Date and time for ZIP filename
         name=ALPkernel-${{ github.event.inputs.CODENAME }}-$build_date.zip
