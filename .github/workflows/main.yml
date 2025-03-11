@@ -47,21 +47,13 @@ jobs:
           zip -r test_upload.zip dummy_files
           echo "zipname=test_upload.zip" >> $GITHUB_OUTPUT
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Upload Dummy ZIP to Telegram with Caption
+        uses: appleboy/telegram-action@master
         with:
-          python-version: '3.9'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install python-telegram-bot
-
-      - name: Run Python script to upload file
-        env:
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          INPUT_CODENAME: ${{ github.event.inputs.CODENAME }}
-          BUILD_DATE: ${{ steps.build_date.outputs.build_date }}
-        run: |
-          python upload_to_telegram.py
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          document: test_upload.zip
+          caption: |
+            #ALPKernel #Alioth
+            For MIUI/HyperOS, add -miui to the ZIP name; for the 4500 variant, add -bat. Example: ALPKernel-miui-bat-dtb.zip.
+            Test Upload: ALP Kernel AOSP Build for ${{ github.event.inputs.CODENAME }} - ${{ steps.build_date.outputs.build_date }}
