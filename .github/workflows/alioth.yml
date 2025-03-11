@@ -167,6 +167,7 @@ jobs:
          -F document=@"${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}" \
          -F thumb=@"aosp_thumbnail.jpg" \
          -F caption="#APLKernel%0A<a href='https://t.me/ALPkernel/128'>flashing guide</a>" \
+         -F parse_mode="HTML" \
          https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument
 
     - name: Send Success Notification
