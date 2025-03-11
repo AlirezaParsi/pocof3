@@ -1,30 +1,36 @@
-name: Upload ZIP to Telegram
+name: Create Fake ZIP and Upload to Telegram
 
 on:
   workflow_dispatch:
-    inputs:
-      ZIP_FILE:
-        description: 'Path to the ZIP file to upload'
-        required: true
 
 jobs:
-  upload:
+  create-and-upload:
     runs-on: ubuntu-latest
     environment: Telegram
     permissions:
-      contents: read
+      contents: write
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    - name: Debug Inputs
+    - name: Create a fake ZIP file
       run: |
-        echo "ZIP_FILE: ${{ github.event.inputs.ZIP_FILE }}"
+        # Create a temporary directory
+        mkdir -p fake_kernel
 
-    - name: Upload ZIP to Telegram
+        # Create a fake file inside the directory
+        echo "This is a fake kernel file for testing." > fake_kernel/fake_kernel.txt
+
+        # Zip the directory
+        zip -r fake_kernel.zip fake_kernel
+
+        # Debug: List files
+        ls -lh
+
+    - name: Upload Fake ZIP to Telegram
       run: |
         curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-             -F document=@"${{ github.event.inputs.ZIP_FILE }}" \
+             -F document=@"fake_kernel.zip" \
              -F caption=$'#APLKernel\nFor MIUI/HyperOS, add -miui to the ZIP name; for the 4500 variant, add -bat. Example: ALPKernel-miui-bat-dtb.zip.' \
              -F parse_mode="HTML" \
              https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument
