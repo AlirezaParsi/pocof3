@@ -44,21 +44,31 @@ jobs:
           zip -r test_upload.zip dummy_files
           echo "zipname=test_upload.zip" >> $GITHUB_OUTPUT
 
+      - name: Validate Telegram Secrets
+        run: |
+          if [ -z "${{ secrets.TELEGRAM_CHAT_ID }}" ]; then
+            echo "ERROR: TELEGRAM_CHAT_ID secret is not set."
+            exit 1
+          fi
+          if [ -z "${{ secrets.TELEGRAM_TOKEN }}" ]; then
+            echo "ERROR: TELEGRAM_TOKEN secret is not set."
+            exit 1
+          fi
+          echo "Telegram secrets are valid."
+
       - name: Upload Dummy ZIP to Telegram with Caption
         run: |
           # Define the caption with proper line breaks
           CAPTION=$'#ALPKernel #Alioth\nFor MIUI/HyperOS, add -miui to the ZIP name; for the 4500 variant, add -bat. Example: ALPKernel-miui-bat-dtb.zip.\nTest Upload: ALP Kernel AOSP Build for ${{ github.event.inputs.CODENAME }} - ${{ steps.build_date.outputs.build_date }}'
 
-          # Create a JSON payload for the Telegram API
-          PAYLOAD=$(jq -n \
-            --arg chat_id "${{ secrets.TELEGRAM_CHAT_ID }}" \
-            --arg caption "$CAPTION" \
-            --arg document "@test_upload.zip" \
-            --arg thumb "@custom_thumbnail.jpg" \
-            '{chat_id: $chat_id, caption: $caption, document: $document, thumb: $thumb}')
+          # Debug: Print the caption
+          echo "Caption: $CAPTION"
 
-          # Upload the file with the JSON payload
+          # Upload the file with the caption
           curl -X POST \
-               -H "Content-Type: application/json" \
-               -d "$PAYLOAD" \
+               -H "Content-Type: multipart/form-data" \
+               -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+               -F document=@"test_upload.zip" \
+               -F thumb=@"custom_thumbnail.jpg" \
+               -F caption="$CAPTION" \
                https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument
