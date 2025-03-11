@@ -11,15 +11,20 @@ on:
 jobs:
   test-upload:
     runs-on: ubuntu-latest
-    environment: Telegram  # Add the Telegram environment here
+    environment: Telegram
     permissions:
-      contents: read  # Only read permissions are needed for this workflow
+      contents: read
     steps:
       - name: Generate Build Date
         id: build_date
         run: |
           build_date=$(date +"%Y%m%d")  # Only date, no time
           echo "build_date=$build_date" >> $GITHUB_OUTPUT
+
+      - name: Install ImageMagick
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
 
       - name: Download and Prepare Thumbnail
         run: |
