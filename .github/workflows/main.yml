@@ -1,0 +1,48 @@
+name: Test Telegram File Upload with Caption
+
+on:
+  workflow_dispatch:
+    inputs:
+      CODENAME:
+        description: 'Phone Codename'
+        default: 'alioth'
+        required: true
+
+jobs:
+  test-upload:
+    runs-on: ubuntu-latest
+    environment: Telegram  # Add the Telegram environment here
+    permissions:
+      contents: read  # Only read permissions are needed for this workflow
+    steps:
+      - name: Generate Build Date
+        id: build_date
+        run: |
+          build_date=$(date +"%Y%m%d")  # Only date, no time
+          echo "build_date=$build_date" >> $GITHUB_OUTPUT
+
+      - name: Download and Prepare Thumbnail
+        run: |
+          # Download AOSP thumbnail
+          curl -o aosp_thumbnail.jpg "https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/thumbnail-susfs-aosp.jpg"
+
+          # Resize and convert the AOSP thumbnail to meet Telegram's requirements
+          convert aosp_thumbnail.jpg -resize 320x320 -quality 80 -format jpg aosp_thumbnail.jpg
+
+          # Debug: Check the size and dimensions of the thumbnail
+          identify aosp_thumbnail.jpg
+
+      - name: Create a Dummy ZIP File
+        run: |
+          mkdir -p dummy_files
+          echo "This is a test file for Telegram upload." > dummy_files/test.txt
+          zip -r test_upload.zip dummy_files
+          echo "zipname=test_upload.zip" >> $GITHUB_OUTPUT
+
+      - name: Upload Dummy ZIP to Telegram with Caption
+        run: |
+          curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+               -F document=@"test_upload.zip" \
+               -F thumb=@"aosp_thumbnail.jpg" \
+               -F caption="Test Upload: ALP Kernel AOSP Build for ${{ github.event.inputs.CODENAME }} - ${{ steps.build_date.outputs.build_date }}" \
+               https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument
