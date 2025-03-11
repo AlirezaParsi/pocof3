@@ -58,7 +58,7 @@ jobs:
         token: ${{ secrets.TELEGRAM_TOKEN }}
         format: html
         message: |
-          <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg">‌</a> <b>Kernel Build Started</b> 🚀
+          <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/susfs-logo.jpg">‌</a> <b>Kernel Build Started</b> 🚀
           🔧 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Run</a>
           <b>📦 Build Title</b>: <code>${{ github.event.inputs.BUILD_TITLE || github.event.inputs.CODENAME }}</code>
           <b>📱 Device Codename</b>: <code>${{ github.event.inputs.CODENAME }}</code>
@@ -149,7 +149,7 @@ jobs:
         name: ${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}
         tag_name: ${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}
         body: |
-          <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg">‌</a> <b>Kernel Build Succeeded</b> ✅
+          <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/susfs-logo.jpg">‌</a> <b>Kernel Build Succeeded</b> ✅
           <b>${{ steps.workspace.outputs.build_title }}</b>
           <b>Kernel successfully built!</b>, took ${{ steps.build.outputs.elapsed_time }} seconds.
           <b>📱 Device Codename</b>: <code>${{ github.event.inputs.CODENAME }}</code>
@@ -176,7 +176,7 @@ jobs:
         token: ${{ secrets.TELEGRAM_TOKEN }}
         format: html
         message: |
-          <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg">‌</a> <b>Kernel Build Succeeded</b> ✅
+          <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/susfs-logo.jpg">‌</a> <b>Kernel Build Succeeded</b> ✅
           🔧 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Run</a>
           <b>📦 Build Title</b>: <code>${{ steps.workspace.outputs.build_title }}</code>
           <b>📱 Device Codename</b>: <code>${{ github.event.inputs.CODENAME }}</code>
@@ -192,7 +192,7 @@ jobs:
         token: ${{ secrets.TELEGRAM_TOKEN }}
         format: html
         message: |
-          <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg">‌</a> <b>Kernel Build Failed</b> ❌
+          <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/susfs-logo.jpg">‌</a> <b>Kernel Build Failed</b> ❌
           🔧 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Run</a>
           <b>⏱️ Elapsed Time</b>: <code>${{ steps.build.outputs.elapsed_time }}</code> seconds
           <b>📦 Build Title</b>: <code>${{ steps.workspace.outputs.build_title }}</code>
@@ -208,7 +208,7 @@ jobs:
         token: ${{ secrets.TELEGRAM_TOKEN }}
         format: html
         message: |
-          <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg">‌</a> <b>Kernel Build Canceled</b> 🚫
+          <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/susfs-logo.jpg">‌</a> <b>Kernel Build Canceled</b> 🚫
           🔧 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow Run</a>
           <b>📦 Build Title</b>: <code>${{ steps.workspace.outputs.build_title }}</code>
           <b>📱 Device Codename</b>: <code>${{ github.event.inputs.CODENAME }}</code>
