@@ -1,59 +1,30 @@
-name: Test Telegram File Upload with Caption
+name: Upload ZIP to Telegram
 
 on:
   workflow_dispatch:
     inputs:
-      CODENAME:
-        description: 'Phone Codename'
-        default: 'alioth'
+      ZIP_FILE:
+        description: 'Path to the ZIP file to upload'
         required: true
 
 jobs:
-  test-upload:
+  upload:
     runs-on: ubuntu-latest
     environment: Telegram
     permissions:
       contents: read
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-      - name: Generate Build Date
-        id: build_date
-        run: |
-          build_date=$(date +"%Y%m%d")  # Only date, no time
-          echo "build_date=$build_date" >> $GITHUB_OUTPUT
+    - name: Debug Inputs
+      run: |
+        echo "ZIP_FILE: ${{ github.event.inputs.ZIP_FILE }}"
 
-      - name: Install ImageMagick
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y imagemagick
-
-      - name: Download and Prepare Thumbnail
-        run: |
-          # Download the new thumbnail
-          curl -o custom_thumbnail.jpg "https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Picsart_25-03-10_00-15-43-611.jpg"
-
-          # Resize and convert the thumbnail to meet Telegram's requirements
-          convert custom_thumbnail.jpg -resize 320x320 -quality 80 -format jpg custom_thumbnail.jpg
-
-          # Debug: Check the size and dimensions of the thumbnail
-          identify custom_thumbnail.jpg
-
-      - name: Create a Dummy ZIP File
-        run: |
-          mkdir -p dummy_files
-          echo "This is a test file for Telegram upload." > dummy_files/test.txt
-          zip -r test_upload.zip dummy_files
-          echo "zipname=test_upload.zip" >> $GITHUB_OUTPUT
-
-      - name: Upload Dummy ZIP to Telegram with Caption
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          document: test_upload.zip
-          caption: |
-            #ALPKernel #Alioth
-            For MIUI/HyperOS, add -miui to the ZIP name; for the 4500 variant, add -bat. Example: ALPKernel-miui-bat-dtb.zip.
-            Test Upload: ALP Kernel AOSP Build for ${{ github.event.inputs.CODENAME }} - ${{ steps.build_date.outputs.build_date }}
+    - name: Upload ZIP to Telegram
+      run: |
+        curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+             -F document=@"${{ github.event.inputs.ZIP_FILE }}" \
+             -F caption=$'#APLKernel\nFor MIUI/HyperOS, add -miui to the ZIP name; for the 4500 variant, add -bat. Example: ALPKernel-miui-bat-dtb.zip.' \
+             -F parse_mode="HTML" \
+             https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument
