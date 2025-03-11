@@ -132,7 +132,7 @@ jobs:
           cp -f dtbo.img AnyKernel3
         fi
         build_date=$(date +"%Y%m%d-%H%M%S")  # Date and time for ZIP filename
-        name=ALPkernel-AOSP-${{ github.event.inputs.CODENAME }}-$build_date.zip
+        name=ALPkernel-${{ github.event.inputs.CODENAME }}-$build_date.zip
         cd AnyKernel3
         zip -q -r $name *
         mv $name ../
