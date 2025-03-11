@@ -15,6 +15,9 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
       - name: Generate Build Date
         id: build_date
         run: |
@@ -44,31 +47,21 @@ jobs:
           zip -r test_upload.zip dummy_files
           echo "zipname=test_upload.zip" >> $GITHUB_OUTPUT
 
-      - name: Validate Telegram Secrets
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
         run: |
-          if [ -z "${{ secrets.TELEGRAM_CHAT_ID }}" ]; then
-            echo "ERROR: TELEGRAM_CHAT_ID secret is not set."
-            exit 1
-          fi
-          if [ -z "${{ secrets.TELEGRAM_TOKEN }}" ]; then
-            echo "ERROR: TELEGRAM_TOKEN secret is not set."
-            exit 1
-          fi
-          echo "Telegram secrets are valid."
+          python -m pip install --upgrade pip
+          pip install python-telegram-bot
 
-      - name: Upload Dummy ZIP to Telegram with Caption
+      - name: Run Python script to upload file
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          INPUT_CODENAME: ${{ github.event.inputs.CODENAME }}
+          BUILD_DATE: ${{ steps.build_date.outputs.build_date }}
         run: |
-          # Define the caption with proper line breaks
-          CAPTION=$'#ALPKernel #Alioth\nFor MIUI/HyperOS, add -miui to the ZIP name; for the 4500 variant, add -bat. Example: ALPKernel-miui-bat-dtb.zip.\nTest Upload: ALP Kernel AOSP Build for ${{ github.event.inputs.CODENAME }} - ${{ steps.build_date.outputs.build_date }}'
-
-          # Debug: Print the caption
-          echo "Caption: $CAPTION"
-
-          # Upload the file with the caption
-          curl -X POST \
-               -H "Content-Type: multipart/form-data" \
-               -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-               -F document=@"test_upload.zip" \
-               -F thumb=@"custom_thumbnail.jpg" \
-               -F caption="$CAPTION" \
-               https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument
+          python upload_to_telegram.py
