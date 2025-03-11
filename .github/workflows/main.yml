@@ -49,5 +49,5 @@ jobs:
           curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
                -F document=@"test_upload.zip" \
                -F thumb=@"aosp_thumbnail.jpg" \
-               -F caption="Test Upload: ALP Kernel AOSP Build for ${{ github.event.inputs.CODENAME }} - ${{ steps.build_date.outputs.build_date }}" \
+               -F caption="#ALPKernel #Alioth<br>For MIUI/HyperOS, add -miui to the ZIP name; for the 4500 variant, add -bat. Example: ALPKernel-miui-bat-dtb.zip.<br>Test Upload: ALP Kernel AOSP Build for ${{ github.event.inputs.CODENAME }} - ${{ steps.build_date.outputs.build_date }}" \
                https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument
