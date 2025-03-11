@@ -1,13 +1,11 @@
 import os
+import asyncio
 from telegram import Bot
 from telegram.constants import ParseMode
 
 # Get secrets from environment variables
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-
-# Initialize the bot
-bot = Bot(token=TELEGRAM_TOKEN)
 
 # Define the file and caption
 file_path = "test_upload.zip"
@@ -20,13 +18,17 @@ Test Upload: ALP Kernel AOSP Build for {codename} - {build_date}
     build_date=os.getenv("BUILD_DATE")
 )
 
-# Upload the file with caption
-with open(file_path, "rb") as file:
-    bot.send_document(
-        chat_id=TELEGRAM_CHAT_ID,
-        document=file,
-        caption=caption,
-        parse_mode=ParseMode.MARKDOWN
-    )
+# Define an async function to send the document
+async def send_file():
+    bot = Bot(token=TELEGRAM_TOKEN)
+    with open(file_path, "rb") as file:
+        await bot.send_document(
+            chat_id=TELEGRAM_CHAT_ID,
+            document=file,
+            caption=caption,
+            parse_mode=ParseMode.MARKDOWN
+        )
+    print("File uploaded successfully with full caption!")
 
-print("File uploaded successfully with full caption!")
+# Run the async function
+asyncio.run(send_file())
