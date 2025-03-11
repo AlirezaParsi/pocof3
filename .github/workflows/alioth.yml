@@ -163,11 +163,11 @@ jobs:
     - name: Upload AnyKernel ZIP to Telegram with AOSP Thumbnail
       if: success()
       run: |
-        curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-             -F document=@"${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}" \
-             -F thumb=@"aosp_thumbnail.jpg" \
-             -F caption="#ALPKernel                                                             For MIUI/HyperOS, add `-miui` to the ZIP name; for the 4500 variant, add `-bat` Example: `ALPKernel-miui-bat-dtb.zip`" \
-             https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument
+         curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+         -F document=@"${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}" \
+         -F thumb=@"aosp_thumbnail.jpg" \
+         -F caption="#APLKernel%0A<a href='https://t.me/ALPkernel/128'>flashing guide</a>" \
+         https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument
 
     - name: Send Success Notification
       if: success()
