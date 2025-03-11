@@ -126,8 +126,8 @@ jobs:
         fi
         if [ -e "dtb.img" ]; then
           mv -f dtb.img dtb
-          cp -f dtb -5000-dtb
-          cp -f -5000-dtb AnyKernel3/-5000-dtb
+          cp -f dtb 5000-dtb
+          cp -f 5000-dtb AnyKernel3/5000-dtb
         fi
         if [ -e "dtbo.img" ]; then
           cp -f dtbo.img aosp-dtbo.img
