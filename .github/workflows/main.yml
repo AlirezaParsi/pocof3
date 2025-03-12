@@ -53,7 +53,8 @@ jobs:
         fi
 
         # Construct the full caption (as per your request)
-        full_caption="#ALPKernel #alioth $build_tag\n<a href=\"https://t.me/ALPkernel/128\">flashing guide</a>"
+        # Ensure proper escaping of special characters and HTML tags
+        full_caption="#ALPKernel #alioth $build_tag%0A<a href=\"https://t.me/ALPkernel/128\">flashing guide</a>"
 
         # Debug: Print the caption
         echo "Generated Caption:"
