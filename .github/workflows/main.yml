@@ -32,6 +32,16 @@ jobs:
         # Debug: List files
         ls -lh
 
+    - name: Debug File Path
+      run: |
+        echo "Checking if fake_kernel.zip exists..."
+        if [ -f "fake_kernel.zip" ]; then
+          echo "fake_kernel.zip exists and is ready for upload."
+        else
+          echo "fake_kernel.zip does not exist. Check the previous steps."
+          exit 1
+        fi
+
     - name: Determine Telegram Caption
       id: caption
       run: |
@@ -47,6 +57,11 @@ jobs:
 
         # Output the caption for use in the next step
         echo "full_caption=$full_caption" >> $GITHUB_OUTPUT
+
+    - name: Debug Telegram Secrets
+      run: |
+        echo "TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}"
+        echo "TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}"
 
     - name: Upload Fake ZIP to Telegram
       run: |
