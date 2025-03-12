@@ -32,16 +32,6 @@ jobs:
         # Debug: List files
         ls -lh
 
-    - name: Debug File Path
-      run: |
-        echo "Checking if fake_kernel.zip exists..."
-        if [ -f "fake_kernel.zip" ]; then
-          echo "fake_kernel.zip exists and is ready for upload."
-        else
-          echo "fake_kernel.zip does not exist. Check the previous steps."
-          exit 1
-        fi
-
     - name: Determine Telegram Caption
       id: caption
       run: |
@@ -52,13 +42,8 @@ jobs:
           build_tag="#CI"
         fi
 
-        # Construct the full caption (as per your request)
-        # Ensure proper escaping of special characters and HTML tags
-        full_caption="#ALPKernel #alioth $build_tag%0A<a href=\"https://t.me/ALPkernel/128\">flashing guide</a>"
-
-        # Debug: Print the caption
-        echo "Generated Caption:"
-        echo "$full_caption"
+        # Construct the full caption (properly formatted)
+        full_caption="#ALPKernel #alioth $build_tag%0A<a href='https://t.me/ALPkernel/128'>flashing guide</a>"
 
         # Output the caption for use in the next step
         echo "full_caption=$full_caption" >> $GITHUB_OUTPUT
