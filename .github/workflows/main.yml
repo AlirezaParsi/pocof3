@@ -32,8 +32,12 @@ jobs:
         # Debug: List files
         ls -lh
 
-    - name: Determine Telegram Caption
-      id: caption
+    - name: Debug Telegram Secrets
+      run: |
+        echo "TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}"
+        echo "TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}"
+
+    - name: Upload Fake ZIP to Telegram
       run: |
         # Determine the tag based on UPLOAD_TO_RELEASE
         if ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' }}; then
@@ -42,27 +46,10 @@ jobs:
           build_tag="#CI"
         fi
 
-        # Construct the full caption (properly formatted as HTML)
-        full_caption="#ALPKernel #alioth $build_tag\n<a href='https://t.me/ALPkernel/128'>flashing guide</a>"
-
-        # Output the caption for use in the next step
-        echo "full_caption=$full_caption" >> $GITHUB_OUTPUT
-
-    - name: Debug Telegram Secrets
-      run: |
-        echo "TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}"
-        echo "TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}"
-
-    - name: Upload Fake ZIP to Telegram
-      run: |
-        # Debug: Print the caption being sent
-        echo "Sending Caption:"
-        echo "${{ steps.caption.outputs.full_caption }}"
-
-        # Upload the file to Telegram
+        # Construct the caption directly in the curl command
         curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
              -F document=@"fake_kernel.zip" \
-             -F caption="${{ steps.caption.outputs.full_caption }}" \
+             -F caption="#ALPKernel #alioth $build_tag"$'\n'"<a href='https://t.me/ALPkernel/128'>flashing guide</a>" \
              -F parse_mode="HTML" \
              https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument
 
