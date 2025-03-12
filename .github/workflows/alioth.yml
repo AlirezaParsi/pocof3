@@ -44,6 +44,7 @@ jobs:
     - name: Debug Secrets
       run: |
         echo "TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}"
+        echo "TELEGRAM_CHAT_ID_2: ${{ secrets.TELEGRAM_CHAT_ID_2 }}"
         echo "TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}"
 
     - name: Generate Build Date
@@ -160,13 +161,36 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       id: upload_release
 
-    - name: Upload AnyKernel ZIP to Telegram with AOSP Thumbnail
+    - name: Determine Build Tag
+      id: build_tag
+      run: |
+        # Determine the tag based on UPLOAD_TO_RELEASE
+        if ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' }}; then
+          build_tag="#release"
+        else
+          build_tag="#CI"
+        fi
+
+        # Output the build tag for use in the next steps
+        echo "build_tag=$build_tag" >> $GITHUB_OUTPUT
+
+    - name: Upload AnyKernel ZIP to Telegram with AOSP Thumbnail (Chat 1)
       if: success()
       run: |
         curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
          -F document=@"${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}" \
          -F thumb=@"aosp_thumbnail.jpg" \
-         -F caption=$'#ALPKernel #alioth\n<a href="https://t.me/ALPkernel/128">flashing guide</a>' \
+         -F caption="#ALPKernel #alioth ${{ steps.build_tag.outputs.build_tag }}"$'\n'"<a href='https://t.me/ALPkernel/128'>flashing guide</a>" \
+         -F parse_mode="HTML" \
+         https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument
+
+    - name: Upload AnyKernel ZIP to Telegram with AOSP Thumbnail (Chat 2)
+      if: success()
+      run: |
+        curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID_2 }}" \
+         -F document=@"${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}" \
+         -F thumb=@"aosp_thumbnail.jpg" \
+         -F caption="#ALPKernel #alioth ${{ steps.build_tag.outputs.build_tag }}"$'\n'"<a href='https://t.me/ALPkernel/128'>flashing guide</a>" \
          -F parse_mode="HTML" \
          https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument
 
