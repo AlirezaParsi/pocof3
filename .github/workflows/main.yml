@@ -42,8 +42,8 @@ jobs:
           build_tag="#CI"
         fi
 
-        # Construct the full caption
-        full_caption="#APLKernel $build_tag\nFor MIUI/HyperOS, add -miui\n to the ZIP name;\n for the 4500 variant, add -bat\n. Example: ALPKernel-miui-bat-dtb.zip."
+        # Construct the full caption (as per your request)
+        full_caption="#ALPKernel #alioth $build_tag\n<a href=\"https://t.me/ALPkernel/128\">flashing guide</a>"
 
         # Output the caption for use in the next step
         echo "full_caption=$full_caption" >> $GITHUB_OUTPUT
