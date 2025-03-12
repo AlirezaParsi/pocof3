@@ -43,7 +43,7 @@ jobs:
         fi
 
         # Construct the full caption (properly formatted)
-        full_caption="#ALPKernel #alioth $build_tag%0A<a href='https://t.me/ALPkernel/128'>flashing guide</a>"
+        full_caption="#ALPKernel #alioth $build_tag\n <a href='https://t.me/ALPkernel/128'>flashing guide</a>"
 
         # Output the caption for use in the next step
         echo "full_caption=$full_caption" >> $GITHUB_OUTPUT
