@@ -6,9 +6,8 @@ api_id = 2040
 api_hash = 'b18441a1ff607e10a989891a5462e627'
 bot_token = os.getenv('TELEGRAM_TOKEN')
 
-# Get chat IDs from environment variables and convert them to integers
+# Get chat ID from environment variable and convert it to an integer
 chat_id = int(os.getenv('TELEGRAM_CHAT_ID'))
-chat_id_2 = int(os.getenv('TELEGRAM_CHAT_ID_2'))
 
 # Initialize the Telegram client
 client = TelegramClient('github_bot', api_id, api_hash).start(bot_token=bot_token)
@@ -17,10 +16,8 @@ async def send_notification(message, file_path=None, thumbnail_path=None):
     try:
         if file_path:
             await client.send_file(chat_id, file_path, caption=message, thumb=thumbnail_path, parse_mode='markdown')
-            await client.send_file(chat_id_2, file_path, caption=message, thumb=thumbnail_path, parse_mode='markdown')
         else:
             await client.send_message(chat_id, message, parse_mode='markdown')
-            await client.send_message(chat_id_2, message, parse_mode='markdown')
     except Exception as e:
         print(f"Failed to send notification: {e}")
 
