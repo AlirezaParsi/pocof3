@@ -6,9 +6,13 @@ api_id = 2040
 api_hash = 'b18441a1ff607e10a989891a5462e627'
 bot_token = os.getenv('TELEGRAM_TOKEN')
 
-# Get chat IDs from environment variables and convert them to integers
-chat_id = int(os.getenv('TELEGRAM_CHAT_ID'))
-chat_id_2 = int(os.getenv('TELEGRAM_CHAT_ID_2'))
+# Get chat IDs from environment variables
+chat_id = int(os.getenv('TELEGRAM_CHAT_ID'))  # Required
+chat_id_2 = os.getenv('TELEGRAM_CHAT_ID_2')  # Optional
+
+# Convert chat_id_2 to int only if it's not None
+if chat_id_2 is not None:
+    chat_id_2 = int(chat_id_2)
 
 # Initialize the Telegram client
 client = TelegramClient('github_bot', api_id, api_hash).start(bot_token=bot_token)
@@ -18,8 +22,8 @@ async def send_notification(message, file_path=None, thumbnail_path=None, is_suc
         if file_path:
             # Send file to Chat 1 with caption
             await client.send_file(chat_id, file_path, caption=message, thumb=thumbnail_path, parse_mode='markdown')
-            # Send file to Chat 2 only if it's a success notification
-            if is_success:
+            # Send file to Chat 2 only if it's a success notification and chat_id_2 is set
+            if is_success and chat_id_2 is not None:
                 await client.send_file(chat_id_2, file_path, caption=message, thumb=thumbnail_path, parse_mode='markdown')
         else:
             # Send message to Chat 1 only (no file, no Chat 2 notification)
