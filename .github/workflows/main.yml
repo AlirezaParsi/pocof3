@@ -1,75 +1,236 @@
-name: Create Fake ZIP and Upload to Telegram
+name: Kernel Build Workflow
 
 on:
   workflow_dispatch:
     inputs:
+      BUILD_TITLE:
+        description: 'Custom Build Title'
+        required: false
+        default: 'CI Build'
+      KERNEL_TREE:
+        description: 'Kernel Tree URL'
+        required: true
+        default: 'https://github.com/AlirezaParsi/pocof3'
+      KERNEL_TREE_BRANCH:
+        description: 'Kernel Tree Branch'
+        required: true
+        default: 'base'
+      CODENAME:
+        description: 'Device Codename'
+        required: true
+        default: 'alioth'
       UPLOAD_TO_RELEASE:
-        description: 'Upload to release'
+        description: 'Upload to GitHub Release'
         type: boolean
+        required: true
+        default: false
+      SKIP_BUILD:
+        description: 'Skip Kernel Building (Debug Mode)'
+        type: boolean
+        required: true
         default: false
 
 jobs:
-  create-and-upload:
+  build:
     runs-on: ubuntu-latest
-    environment: Telegram
+    environment: Telegram  # Reference the Telegram environment
     permissions:
       contents: write
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-    - name: Create a fake ZIP file
-      run: |
-        # Create a temporary directory
-        mkdir -p fake_kernel
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.12'  # Updated to Python 3.12
 
-        # Create a fake file inside the directory
-        echo "This is a fake kernel file for testing." > fake_kernel/fake_kernel.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install telethon
 
-        # Zip the directory
-        zip -r fake_kernel.zip fake_kernel
+      - name: Display Inputs
+        run: |
+          echo "Build Title: ${{ github.event.inputs.BUILD_TITLE }}"
+          echo "Kernel Tree: ${{ github.event.inputs.KERNEL_TREE }}"
+          echo "Kernel Tree Branch: ${{ github.event.inputs.KERNEL_TREE_BRANCH }}"
+          echo "Codename: ${{ github.event.inputs.CODENAME }}"
+          echo "Upload to Release: ${{ github.event.inputs.UPLOAD_TO_RELEASE }}"
+          echo "Skip Build: ${{ github.event.inputs.SKIP_BUILD }}"
 
-        # Debug: List files
-        ls -lh
+      - name: Run Telegram Notifier for Build Start
+        env:
+          BUILD_STATUS: 'start'
+          BUILD_TITLE: ${{ github.event.inputs.BUILD_TITLE }}
+          CODENAME: ${{ github.event.inputs.CODENAME }}
+          KERNEL_TREE: ${{ github.event.inputs.KERNEL_TREE }}
+          KERNEL_TREE_BRANCH: ${{ github.event.inputs.KERNEL_TREE_BRANCH }}
+          UPLOAD_TO_RELEASE: ${{ github.event.inputs.UPLOAD_TO_RELEASE }}
+          WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID_2: ${{ secrets.TELEGRAM_CHAT_ID_2 }}
+        run: |
+          python telegram_notifier.py
 
-    - name: Debug Telegram Secrets
-      run: |
-        echo "TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}"
-        echo "TELEGRAM_CHAT_ID_2: ${{ secrets.TELEGRAM_CHAT_ID_2 }}"
-        echo "TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}"
+      - name: Initialize workspace
+        if: ${{ !github.event.inputs.SKIP_BUILD }}
+        run: |
+          mkdir workspace
+          cd workspace
+          echo "workspace-folder=$(pwd)" >> $GITHUB_OUTPUT
+          echo "start_time=$(date +%s)" >> $GITHUB_OUTPUT
+          echo "build_title=${{ github.event.inputs.BUILD_TITLE || github.event.inputs.CODENAME }}" >> $GITHUB_OUTPUT
+        id: workspace
 
-    - name: Determine Build Tag
-      id: build_tag
-      run: |
-        # Determine the tag based on UPLOAD_TO_RELEASE
-        if ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' }}; then
-          build_tag="#release"
-        else
-          build_tag="#CI"
-        fi
+      - name: Prepare the build environment
+        if: ${{ !github.event.inputs.SKIP_BUILD }}
+        run: |
+          sudo apt update -y
+          sudo apt install -y flex bison libncurses-dev libssl-dev bc build-essential git imagemagick
+          wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz -O clang.tar.gz
+          mkdir clang
+          tar -xf clang.tar.gz -C clang
+          echo "tools-folder=$(pwd)/clang" >> $GITHUB_OUTPUT
+        working-directory: ${{ steps.workspace.outputs.workspace-folder }}
+        id: tools
 
-        # Output the build tag for use in the next steps
-        echo "build_tag=$build_tag" >> $GITHUB_OUTPUT
+      - name: Clone kernel source
+        if: ${{ !github.event.inputs.SKIP_BUILD }}
+        run: |
+          git clone --depth=1 ${{ github.event.inputs.KERNEL_TREE }} -b ${{ github.event.inputs.KERNEL_TREE_BRANCH }} kernel_tree
+          echo "kernel-folder=$(pwd)/kernel_tree" >> $GITHUB_OUTPUT
+        working-directory: ${{ steps.workspace.outputs.workspace-folder }}
+        id: kernel
 
-    - name: Upload Fake ZIP to Telegram (Chat 1)
-      run: |
-        # Construct the caption directly in the curl command
-        curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-             -F document=@"fake_kernel.zip" \
-             -F caption="#ALPKernel #alioth ${{ steps.build_tag.outputs.build_tag }}"$'\n'"<a href='https://t.me/ALPkernel/128'>flashing guide</a>" \
-             -F parse_mode="HTML" \
-             https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument
+      - name: Building kernel
+        if: ${{ !github.event.inputs.SKIP_BUILD }}
+        run: |
+          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
+          export ARCH=arm64
+          export SUBARCH=ARM64
+          export KBUILD_BUILD_USER="aliza"
+          export KBUILD_BUILD_HOST="Github"
+          make O=out vendor/alioth_defconfig PATH="${{ steps.tools.outputs.tools-folder }}/bin:$PATH"
+          make O=out CC=clang -j$(nproc --all) PATH="${{ steps.tools.outputs.tools-folder }}/bin:$PATH" CROSS_COMPILE=aarch64-linux-gnu- LLVM=1 LLVM_IAS=1
+          echo "elapsed_time=$(echo "$(date +%s)"-"${{ steps.workspace.outputs.start_time }}" | bc)" >> $GITHUB_OUTPUT
+        working-directory: ${{ steps.kernel.outputs.kernel-folder }}
+        id: build
 
-    - name: Upload Fake ZIP to Telegram (Chat 2)
-      run: |
-        # Construct the caption directly in the curl command
-        curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID_2 }}" \
-             -F document=@"fake_kernel.zip" \
-             -F caption="#ALPKernel #alioth ${{ steps.build_tag.outputs.build_tag }}"$'\n'"<a href='https://t.me/ALPkernel/128'>flashing guide</a>" \
-             -F parse_mode="HTML" \
-             https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument
+      - name: Download and Prepare Thumbnails
+        run: |
+          # Download AOSP thumbnail
+          curl -o aosp_thumbnail.jpg "https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/thumbnail.jpg"
 
-    - name: Upload to Release (Debug - Disabled)
-      if: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' }}
-      run: |
-        echo "Debug mode: Skipping release upload to avoid cluttering releases."
+          # Resize and convert the AOSP thumbnail to meet Telegram's requirements
+          convert aosp_thumbnail.jpg -resize 320x320 -quality 80 -format jpg aosp_thumbnail.jpg
+
+          # Debug: Check the size and dimensions of the thumbnails
+          identify aosp_thumbnail.jpg
+
+      - name: AnyKernel3
+        if: success() && !github.event.inputs.SKIP_BUILD
+        run: |
+          git clone --recursive --depth=1 https://github.com/AlirezaParsi/F3aosp -b mix AnyKernel3
+          if [ -e "Image.gz" ]; then
+            cp -f Image.gz AnyKernel3
+          fi
+          if [ -e "dtb.img" ]; then
+            mv -f dtb.img dtb
+            cp -f dtb AnyKernel3/dtb
+          fi
+          if [ -e "dtbo.img" ]; then
+            cp -f dtbo.img AnyKernel3
+          fi
+          build_date=$(date +"%Y%m%d-%H%M%S")  # Date and time for ZIP filename
+          name=ALPkernel-${{ github.event.inputs.CODENAME }}-$build_date.zip
+          cd AnyKernel3
+          zip -q -r $name *
+          mv $name ../
+          echo "zipname=$name" >> $GITHUB_OUTPUT
+        working-directory: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/
+        id: anykernel
+
+      - name: Upload to Release
+        if: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}
+          name: ${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}
+          tag_name: ${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}
+          body: |
+            <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg">‌</a> <b>Kernel Build Succeeded</b> ✅
+            <b>${{ steps.workspace.outputs.build_title }}</b>
+            <b>Kernel successfully built!</b>, took ${{ steps.build.outputs.elapsed_time }} seconds.
+            <b>📱 Device Codename</b>: <code>${{ github.event.inputs.CODENAME }}</code>
+            <b>Kernel tree</b>: ${{ github.event.inputs.KERNEL_TREE }}/tree/${{ github.event.inputs.KERNEL_TREE_BRANCH }}
+            <b>Action</b>: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            <b>Workflow File</b>: ${{ github.workflow }}.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        id: upload_release
+
+      - name: Determine Build Tag
+        id: build_tag
+        run: |
+          # Determine the tag based on UPLOAD_TO_RELEASE
+          if ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' }}; then
+            build_tag="#release"
+          else
+            build_tag="#CI"
+          fi
+
+          # Output the build tag for use in the next steps
+          echo "build_tag=$build_tag" >> $GITHUB_OUTPUT
+
+      - name: Run Telegram Notifier for Build Success with File Upload
+        if: success()
+        env:
+          BUILD_STATUS: 'success'
+          BUILD_TITLE: ${{ steps.workspace.outputs.build_title }}
+          CODENAME: ${{ github.event.inputs.CODENAME }}
+          ELAPSED_TIME: ${{ steps.build.outputs.elapsed_time }}
+          ZIP_NAME: ${{ steps.anykernel.outputs.zipname }}
+          WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          UPLOAD_TO_RELEASE: ${{ github.event.inputs.UPLOAD_TO_RELEASE }}
+          DOWNLOAD_LINK: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && format('{0}/{1}/releases/tag/{2}-{3}', github.server_url, github.repository, github.event.inputs.CODENAME, steps.build_date.outputs.build_date) || '' }}
+          FILE_PATH: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}
+          THUMBNAIL_PATH: aosp_thumbnail.jpg
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID_2: ${{ secrets.TELEGRAM_CHAT_ID_2 }}
+          BUILD_TAG: ${{ steps.build_tag.outputs.build_tag }}
+        run: |
+          python telegram_notifier.py
+
+      - name: Run Telegram Notifier for Build Failure
+        if: failure()
+        env:
+          BUILD_STATUS: 'failure'
+          BUILD_TITLE: ${{ steps.workspace.outputs.build_title }}
+          CODENAME: ${{ github.event.inputs.CODENAME }}
+          ELAPSED_TIME: ${{ steps.build.outputs.elapsed_time }}
+          WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          UPLOAD_TO_RELEASE: ${{ github.event.inputs.UPLOAD_TO_RELEASE }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID_2: ${{ secrets.TELEGRAM_CHAT_ID_2 }}
+        run: |
+          python telegram_notifier.py
+
+      - name: Run Telegram Notifier for Build Canceled
+        if: cancelled()
+        env:
+          BUILD_STATUS: 'canceled'
+          BUILD_TITLE: ${{ steps.workspace.outputs.build_title }}
+          CODENAME: ${{ github.event.inputs.CODENAME }}
+          WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          UPLOAD_TO_RELEASE: ${{ github.event.inputs.UPLOAD_TO_RELEASE }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID_2: ${{ secrets.TELEGRAM_CHAT_ID_2 }}
+        run: |
+          python telegram_notifier.py
