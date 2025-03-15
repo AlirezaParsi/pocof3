@@ -29,6 +29,11 @@ on:
         type: boolean
         required: true
         default: false
+      SKIP_CLONE:
+        description: 'Skip Cloning Kernel Source (Debug Mode)'
+        type: boolean
+        required: true
+        default: false
 
 jobs:
   build:
@@ -63,6 +68,7 @@ jobs:
           echo "Codename: ${{ github.event.inputs.CODENAME }}"
           echo "Upload to Release: ${{ github.event.inputs.UPLOAD_TO_RELEASE }}"
           echo "Skip Build: ${{ github.event.inputs.SKIP_BUILD }}"
+          echo "Skip Clone: ${{ github.event.inputs.SKIP_CLONE }}"
 
       - name: Run Telegram Notifier for Build Start
         env:
@@ -75,12 +81,10 @@ jobs:
           WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_CHAT_ID_2: ${{ secrets.TELEGRAM_CHAT_ID_2 }}
         run: |
           python telegram_notifier.py
 
       - name: Initialize workspace
-        if: ${{ !github.event.inputs.SKIP_BUILD }}
         run: |
           mkdir workspace
           cd workspace
@@ -90,7 +94,6 @@ jobs:
         id: workspace
 
       - name: Prepare the build environment
-        if: ${{ !github.event.inputs.SKIP_BUILD }}
         run: |
           sudo apt update -y
           sudo apt install -y flex bison libncurses-dev libssl-dev bc build-essential git
@@ -102,7 +105,7 @@ jobs:
         id: tools
 
       - name: Clone kernel source
-        if: ${{ !github.event.inputs.SKIP_BUILD }}
+        if: ${{ !github.event.inputs.SKIP_CLONE }}
         run: |
           git clone --depth=1 ${{ github.event.inputs.KERNEL_TREE }} -b ${{ github.event.inputs.KERNEL_TREE_BRANCH }} kernel_tree
           echo "kernel-folder=$(pwd)/kernel_tree" >> $GITHUB_OUTPUT
@@ -135,7 +138,7 @@ jobs:
           identify aosp_thumbnail.jpg
 
       - name: AnyKernel3
-        if: success() && !github.event.inputs.SKIP_BUILD
+        if: success()
         run: |
           git clone --recursive --depth=1 https://github.com/AlirezaParsi/F3aosp -b mix AnyKernel3
           if [ -e "Image.gz" ]; then
@@ -205,7 +208,6 @@ jobs:
           THUMBNAIL_PATH: aosp_thumbnail.jpg
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_CHAT_ID_2: ${{ secrets.TELEGRAM_CHAT_ID_2 }}
           BUILD_TAG: ${{ steps.build_tag.outputs.build_tag }}
         run: |
           python telegram_notifier.py
@@ -221,7 +223,6 @@ jobs:
           UPLOAD_TO_RELEASE: ${{ github.event.inputs.UPLOAD_TO_RELEASE }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_CHAT_ID_2: ${{ secrets.TELEGRAM_CHAT_ID_2 }}
         run: |
           python telegram_notifier.py
 
@@ -236,6 +237,5 @@ jobs:
           GITHUB_ACTOR: ${{ github.actor }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_CHAT_ID_2: ${{ secrets.TELEGRAM_CHAT_ID_2 }}
         run: |
           python telegram_notifier.py
