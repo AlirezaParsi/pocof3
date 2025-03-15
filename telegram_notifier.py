@@ -48,13 +48,12 @@ async def main():
     build_type = "Release Build" if upload_to_release == 'true' else "CI Build"
 
     # Hidden markdown link for logo
-    hidden_logo = "[](https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/logo.jpg)"
+    hidden_logo = "[‌](https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/logo.jpg)"
 
     # Construct the notification message based on build status
     if build_status == 'start':
         message = (
-            f"{hidden_logo}\n"
-            f"🚀 **Kernel Build Started**\n"
+            f"{hidden_logo}🚀 **Kernel Build Started**\n"
             f"📦 **Build Title**: {build_title}\n"
             f"📱 **Device Codename**: {codename}\n"
             f"🏷️ **Build Type**: {build_type}\n"
@@ -62,8 +61,7 @@ async def main():
         )
     elif build_status == 'success':
         message = (
-            f"{hidden_logo}\n"
-            f"✅ **Kernel Build Succeeded**\n"
+            f"{hidden_logo}✅ **Kernel Build Succeeded**\n"
             f"📦 **Build Title**: {build_title}\n"
             f"📱 **Device Codename**: {codename}\n"
             f"🏷️ **Build Type**: {build_type}\n"
@@ -75,8 +73,7 @@ async def main():
             message += f"\n📥 **Download Link**: [Release {build_title}]({download_link})"
     elif build_status == 'failure':
         message = (
-            f"{hidden_logo}\n"
-            f"❌ **Kernel Build Failed**\n"
+            f"{hidden_logo}❌ **Kernel Build Failed**\n"
             f"📦 **Build Title**: {build_title}\n"
             f"📱 **Device Codename**: {codename}\n"
             f"🏷️ **Build Type**: {build_type}\n"
@@ -85,8 +82,7 @@ async def main():
         )
     elif build_status == 'canceled':
         message = (
-            f"{hidden_logo}\n"
-            f"🚫 **Kernel Build Canceled**\n"
+            f"{hidden_logo}🚫 **Kernel Build Canceled**\n"
             f"📦 **Build Title**: {build_title}\n"
             f"📱 **Device Codename**: {codename}\n"
             f"🏷️ **Build Type**: {build_type}\n"
