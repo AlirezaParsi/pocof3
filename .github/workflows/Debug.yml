@@ -126,6 +126,7 @@ jobs:
           THUMBNAIL_PATH: aosp_thumbnail.jpg
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID_2: ${{ secrets.TELEGRAM_CHAT_ID_2 }}  # Added chat_id_2 for success notifications
           BUILD_TAG: ${{ steps.build_tag.outputs.build_tag }}
         run: |
           python telegram_notifier.py
