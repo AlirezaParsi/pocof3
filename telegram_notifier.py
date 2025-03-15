@@ -13,15 +13,16 @@ chat_id_2 = int(os.getenv('TELEGRAM_CHAT_ID_2'))
 # Initialize the Telegram client
 client = TelegramClient('github_bot', api_id, api_hash).start(bot_token=bot_token)
 
-async def send_notification(message, file_path=None, thumbnail_path=None):
+async def send_notification(message, file_path=None, thumbnail_path=None, is_success=False):
     try:
         if file_path:
             # Send file to Chat 1 with caption
             await client.send_file(chat_id, file_path, caption=message, thumb=thumbnail_path, parse_mode='markdown')
-            # Send file to Chat 2 with the same caption
-            await client.send_file(chat_id_2, file_path, caption=message, thumb=thumbnail_path, parse_mode='markdown')
+            # Send file to Chat 2 only if it's a success notification
+            if is_success:
+                await client.send_file(chat_id_2, file_path, caption=message, thumb=thumbnail_path, parse_mode='markdown')
         else:
-            # Send message to Chat 1
+            # Send message to Chat 1 only (no file, no Chat 2 notification)
             await client.send_message(chat_id, message, parse_mode='markdown')
     except Exception as e:
         print(f"Failed to send notification: {e}")
@@ -43,7 +44,7 @@ async def main():
     build_type = "Release Build" if upload_to_release == 'true' else "CI Build"
 
     # Hidden markdown link for logo
-    hidden_logo = "[​](https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/logo.jpg)"
+    hidden_logo = "[](https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/logo.jpg)"
 
     # Construct the notification message based on build status
     if build_status == 'start':
@@ -92,8 +93,11 @@ async def main():
     file_path = os.getenv('FILE_PATH')
     thumbnail_path = os.getenv('THUMBNAIL_PATH')
 
+    # Determine if this is a success notification with a file
+    is_success = build_status == 'success' and file_path is not None
+
     # Send the notification
-    await send_notification(message, file_path, thumbnail_path)
+    await send_notification(message, file_path, thumbnail_path, is_success)
 
 if __name__ == '__main__':
     with client:
