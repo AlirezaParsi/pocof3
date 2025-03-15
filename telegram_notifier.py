@@ -6,8 +6,9 @@ api_id = 2040
 api_hash = 'b18441a1ff607e10a989891a5462e627'
 bot_token = os.getenv('TELEGRAM_TOKEN')
 
-# Get chat ID from environment variable and convert it to an integer
+# Get chat IDs from environment variables and convert them to integers
 chat_id = int(os.getenv('TELEGRAM_CHAT_ID'))
+chat_id_2 = int(os.getenv('TELEGRAM_CHAT_ID_2'))
 
 # Initialize the Telegram client
 client = TelegramClient('github_bot', api_id, api_hash).start(bot_token=bot_token)
@@ -15,8 +16,12 @@ client = TelegramClient('github_bot', api_id, api_hash).start(bot_token=bot_toke
 async def send_notification(message, file_path=None, thumbnail_path=None):
     try:
         if file_path:
+            # Send file to Chat 1 with caption
             await client.send_file(chat_id, file_path, caption=message, thumb=thumbnail_path, parse_mode='markdown')
+            # Send file to Chat 2 with the same caption
+            await client.send_file(chat_id_2, file_path, caption=message, thumb=thumbnail_path, parse_mode='markdown')
         else:
+            # Send message to Chat 1
             await client.send_message(chat_id, message, parse_mode='markdown')
     except Exception as e:
         print(f"Failed to send notification: {e}")
@@ -37,9 +42,13 @@ async def main():
     # Determine build type
     build_type = "Release Build" if upload_to_release == 'true' else "CI Build"
 
+    # Hidden markdown link for logo
+    hidden_logo = "[​](https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/logo.jpg)"
+
     # Construct the notification message based on build status
     if build_status == 'start':
         message = (
+            f"{hidden_logo}\n"
             f"🚀 **Kernel Build Started**\n"
             f"📦 **Build Title**: {build_title}\n"
             f"📱 **Device Codename**: {codename}\n"
@@ -48,18 +57,20 @@ async def main():
         )
     elif build_status == 'success':
         message = (
+            f"{hidden_logo}\n"
             f"✅ **Kernel Build Succeeded**\n"
             f"📦 **Build Title**: {build_title}\n"
             f"📱 **Device Codename**: {codename}\n"
             f"🏷️ **Build Type**: {build_type}\n"
             f"⏱️ **Elapsed Time**: {elapsed_time} seconds\n"
             f"📄 **File**: {zip_name}\n"
-            f"#alioth {build_tag}"
+            f"#ALPkernel #alioth {build_tag}"
         )
         if download_link:
             message += f"\n📥 **Download Link**: [Release {build_title}]({download_link})"
     elif build_status == 'failure':
         message = (
+            f"{hidden_logo}\n"
             f"❌ **Kernel Build Failed**\n"
             f"📦 **Build Title**: {build_title}\n"
             f"📱 **Device Codename**: {codename}\n"
@@ -69,6 +80,7 @@ async def main():
         )
     elif build_status == 'canceled':
         message = (
+            f"{hidden_logo}\n"
             f"🚫 **Kernel Build Canceled**\n"
             f"📦 **Build Title**: {build_title}\n"
             f"📱 **Device Codename**: {codename}\n"
