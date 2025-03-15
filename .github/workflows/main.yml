@@ -50,6 +50,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install telethon
 
+      - name: Install ImageMagick
+        run: |
+          sudo apt update -y
+          sudo apt install -y imagemagick
+
       - name: Display Inputs
         run: |
           echo "Build Title: ${{ github.event.inputs.BUILD_TITLE }}"
@@ -88,7 +93,7 @@ jobs:
         if: ${{ !github.event.inputs.SKIP_BUILD }}
         run: |
           sudo apt update -y
-          sudo apt install -y flex bison libncurses-dev libssl-dev bc build-essential git imagemagick
+          sudo apt install -y flex bison libncurses-dev libssl-dev bc build-essential git
           wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz -O clang.tar.gz
           mkdir clang
           tar -xf clang.tar.gz -C clang
