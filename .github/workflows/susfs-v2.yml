@@ -77,6 +77,7 @@ jobs:
         CODENAME: ${{ github.event.inputs.CODENAME }}
         UPLOAD_TO_RELEASE: ${{ github.event.inputs.UPLOAD_TO_RELEASE }}
         WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        WORKFLOW_FILE: ${{ github.workflow }}.yml  # Pass workflow file name
         TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       run: |
@@ -197,6 +198,7 @@ jobs:
         DOWNLOAD_LINK: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && format('{0}/{1}/releases/tag/{2}-{3}', github.server_url, github.repository, github.event.inputs.CODENAME, steps.build_date.outputs.build_date) || '' }}
         FILE_PATH: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}
         THUMBNAIL_PATH: aosp_thumbnail.jpg
+        WORKFLOW_FILE: ${{ github.workflow }}.yml  # Pass workflow file name
         TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         TELEGRAM_CHAT_ID_2: ${{ secrets.TELEGRAM_CHAT_ID_2 || '' }}
@@ -213,6 +215,7 @@ jobs:
         ELAPSED_TIME: ${{ steps.build.outputs.elapsed_time }}
         WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         UPLOAD_TO_RELEASE: ${{ github.event.inputs.UPLOAD_TO_RELEASE }}
+        WORKFLOW_FILE: ${{ github.workflow }}.yml  # Pass workflow file name
         TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       run: |
@@ -227,6 +230,7 @@ jobs:
         WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         UPLOAD_TO_RELEASE: ${{ github.event.inputs.UPLOAD_TO_RELEASE }}
         GITHUB_ACTOR: ${{ github.actor }}
+        WORKFLOW_FILE: ${{ github.workflow }}.yml  # Pass workflow file name
         TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       run: |
