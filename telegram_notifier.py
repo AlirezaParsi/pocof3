@@ -67,7 +67,8 @@ async def main():
             f"🏷️ **Build Type**: {build_type}\n"
             f"⏱️ **Elapsed Time**: {elapsed_time} seconds\n"
             f"📄 **File**: {zip_name}\n"
-            f"#ALPkernel #alioth {build_tag}"
+            f"#ALPKernel #alioth {build_tag}\n"
+            f"[Flashing Guide](https://t.me/ALPkernel/128)"
         )
         if download_link:
             message += f"\n📥 **Download Link**: [Release {build_title}]({download_link})"
