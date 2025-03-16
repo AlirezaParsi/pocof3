@@ -1,4 +1,4 @@
-name: aliothv2
+name: alioth
 
 on:
   pull_request:
@@ -32,6 +32,14 @@ jobs:
     permissions:
       contents: write
     steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Debug Working Directory
+      run: |
+        echo "Current working directory: $(pwd)"
+        ls -la
+
     - name: Display User Inputs
       run: |
         echo "::group::User Environment Variables"
