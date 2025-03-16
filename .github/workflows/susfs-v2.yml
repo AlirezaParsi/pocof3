@@ -161,7 +161,7 @@ jobs:
         name: ${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}
         tag_name: ${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}
         body: |
-          <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/susfs-logo.jpg">‌</a> <b>Kernel Build Succeeded</b> ✅
+          <b>Kernel Build Succeeded</b> ✅
           <b>${{ steps.workspace.outputs.build_title }}</b>
           <b>Kernel successfully built!</b>, took ${{ steps.build.outputs.elapsed_time }} seconds.
           <b>📱 Device Codename</b>: <code>${{ github.event.inputs.CODENAME }}</code>
