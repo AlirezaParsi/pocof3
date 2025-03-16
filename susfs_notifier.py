@@ -49,7 +49,7 @@ async def main():
     build_type = "Release Build" if upload_to_release == 'true' else "CI Build"
 
     # Hidden markdown link for logo
-    hidden_logo = "[‌](https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/logo.jpg)"
+    hidden_logo = "[‌](https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/susfs-logo.jpg)"
 
     # Construct the notification message based on build status
     if build_status == 'start':
