@@ -78,6 +78,7 @@ jobs:
         CODENAME: ${{ github.event.inputs.CODENAME }}
         UPLOAD_TO_RELEASE: ${{ github.event.inputs.UPLOAD_TO_RELEASE }}
         WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        WORKFLOW_FILE: ${{ github.workflow }}.yml  # Pass workflow file name
         TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       run: |
@@ -125,13 +126,8 @@ jobs:
 
     - name: Download and Prepare Thumbnails
       run: |
-        # Download AOSP thumbnail
         curl -o aosp_thumbnail.jpg "https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/thumbnail.jpg"
-
-        # Resize and convert the AOSP thumbnail to meet Telegram's requirements
         convert aosp_thumbnail.jpg -resize 320x320 -quality 80 -format jpg aosp_thumbnail.jpg
-
-        # Debug: Check the size and dimensions of the thumbnails
         identify aosp_thumbnail.jpg
 
     - name: AnyKernel3
@@ -166,7 +162,7 @@ jobs:
         name: ${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}
         tag_name: ${{ github.event.inputs.CODENAME }}-${{ steps.build_date.outputs.build_date }}
         body: |
-          <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/Rich%20deep%20teal%2C%20overhead%20bird%E2%80%99s%20eye%20view%20banner%20for%20ALP%20Kernel%2C%20a%20Linux%20kernel.%20Logo%20incorporated%2C%20top-down%20perspective%2C%20luxurious%20and%20vibrant%20color.%20Social%20media%20post%20banner.jpg">‌</a> <b>Kernel Build Succeeded</b> ✅
+          <a href="https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/logo.jpg">‌</a> <b>Kernel Build Succeeded</b> ✅
           <b>${{ steps.workspace.outputs.build_title }}</b>
           <b>Kernel successfully built!</b>, took ${{ steps.build.outputs.elapsed_time }} seconds.
           <b>📱 Device Codename</b>: <code>${{ github.event.inputs.CODENAME }}</code>
@@ -180,14 +176,11 @@ jobs:
     - name: Determine Build Tag
       id: build_tag
       run: |
-        # Determine the tag based on UPLOAD_TO_RELEASE
         if ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' }}; then
           build_tag="#release"
         else
           build_tag="#CI"
         fi
-
-        # Output the build tag for use in the next steps
         echo "build_tag=$build_tag" >> $GITHUB_OUTPUT
 
     - name: Notify Build Success
@@ -203,6 +196,7 @@ jobs:
         DOWNLOAD_LINK: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && format('{0}/{1}/releases/tag/{2}-{3}', github.server_url, github.repository, github.event.inputs.CODENAME, steps.build_date.outputs.build_date) || '' }}
         FILE_PATH: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}
         THUMBNAIL_PATH: aosp_thumbnail.jpg
+        WORKFLOW_FILE: ${{ github.workflow }}.yml  # Pass workflow file name
         TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         TELEGRAM_CHAT_ID_2: ${{ secrets.TELEGRAM_CHAT_ID_2 || '' }}
@@ -219,6 +213,7 @@ jobs:
         ELAPSED_TIME: ${{ steps.build.outputs.elapsed_time }}
         WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         UPLOAD_TO_RELEASE: ${{ github.event.inputs.UPLOAD_TO_RELEASE }}
+        WORKFLOW_FILE: ${{ github.workflow }}.yml  # Pass workflow file name
         TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       run: |
@@ -233,6 +228,7 @@ jobs:
         WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         UPLOAD_TO_RELEASE: ${{ github.event.inputs.UPLOAD_TO_RELEASE }}
         GITHUB_ACTOR: ${{ github.actor }}
+        WORKFLOW_FILE: ${{ github.workflow }}.yml  # Pass workflow file name
         TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       run: |
