@@ -42,7 +42,8 @@ async def main():
     upload_to_release = os.getenv('UPLOAD_TO_RELEASE')
     download_link = os.getenv('DOWNLOAD_LINK')
     github_actor = os.getenv('GITHUB_ACTOR')
-    build_tag = "#release" if upload_to_release == 'true' else "#CI"
+    workflow_file = os.getenv('WORKFLOW_FILE')  # Get workflow file name from environment
+    build_tag = os.getenv('BUILD_TAG')  # Get build tag from environment
 
     # Determine build type
     build_type = "Release Build" if upload_to_release == 'true' else "CI Build"
@@ -57,6 +58,7 @@ async def main():
             f"📦 **Build Title**: {build_title}\n"
             f"📱 **Device Codename**: {codename}\n"
             f"🏷️ **Build Type**: {build_type}\n"
+            f"🗃️ **Workflow File**: {workflow_file}\n"
             f"🔧 [View Workflow Run]({workflow_run_url})"
         )
     elif build_status == 'success':
@@ -67,9 +69,9 @@ async def main():
             f"🏷️ **Build Type**: {build_type}\n"
             f"⏱️ **Elapsed Time**: {elapsed_time} seconds\n"
             f"📄 **File**: {zip_name}\n"
+            f"🗃️ **Workflow File**: {workflow_file}\n"
             f"[Flashing Guide](https://t.me/ALPkernel/128)\n"
             f"#ALPKernel #alioth {build_tag}"
-            
         )
         if download_link:
             message += f"\n📥 **Download Link**: [Release {build_title}]({download_link})"
@@ -80,6 +82,7 @@ async def main():
             f"📱 **Device Codename**: {codename}\n"
             f"🏷️ **Build Type**: {build_type}\n"
             f"⏱️ **Elapsed Time**: {elapsed_time} seconds\n"
+            f"🗃️ **Workflow File**: {workflow_file}\n"
             f"🔧 [View Workflow Run]({workflow_run_url})"
         )
     elif build_status == 'canceled':
@@ -89,6 +92,7 @@ async def main():
             f"📱 **Device Codename**: {codename}\n"
             f"🏷️ **Build Type**: {build_type}\n"
             f"🔧 [View Workflow Run]({workflow_run_url})\n"
+            f"🗃️ **Workflow File**: {workflow_file}\n"
             f"👤 **Canceled by**: {github_actor}"
         )
 
