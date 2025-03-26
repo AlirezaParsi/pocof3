@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/mm.h>
+#include <linux/pagewalk.h>
 #include <linux/vmacache.h>
 #include <linux/hugetlb.h>
 #include <linux/huge_mm.h>
@@ -19,15 +19,11 @@
 #include <linux/shmem_fs.h>
 #include <linux/uaccess.h>
 #include <linux/pkeys.h>
-#include <linux/mm_inline.h>
-#include <linux/ctype.h>
-#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
-#include <linux/susfs_def.h>
-#endif
 
 #include <asm/elf.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
+#include <misc/lyb_taskmmu.h>
 #include "internal.h"
 
 #define SEQ_PUT_DEC(str, val) \
@@ -331,6 +327,299 @@ static int is_stack(struct vm_area_struct *vma)
 		vma->vm_end >= vma->vm_mm->start_stack;
 }
 
+<<<<<<< HEAD
+#define print_vma_hex10(out, val, clz_fn) \
+({									\
+	const typeof(val) __val = val;					\
+	char *const __out = out;					\
+	size_t __len;							\
+									\
+	if (__val) {							\
+		__len = (sizeof(__val) * 8 - clz_fn(__val) + 3) / 4;	\
+		switch (__len) {					\
+		case 10:						\
+			__out[9] = hex_asc[(__val >>  0) & 0xf];	\
+			__out[8] = hex_asc[(__val >>  4) & 0xf];	\
+			__out[7] = hex_asc[(__val >>  8) & 0xf];	\
+			__out[6] = hex_asc[(__val >> 12) & 0xf];	\
+			__out[5] = hex_asc[(__val >> 16) & 0xf];	\
+			__out[4] = hex_asc[(__val >> 20) & 0xf];	\
+			__out[3] = hex_asc[(__val >> 24) & 0xf];	\
+			__out[2] = hex_asc[(__val >> 28) & 0xf];	\
+			__out[1] = hex_asc[(__val >> 32) & 0xf];	\
+			__out[0] = hex_asc[(__val >> 36) & 0xf];	\
+			break;						\
+		case 9:							\
+			__out[8] = hex_asc[(__val >>  0) & 0xf];	\
+			__out[7] = hex_asc[(__val >>  4) & 0xf];	\
+			__out[6] = hex_asc[(__val >>  8) & 0xf];	\
+			__out[5] = hex_asc[(__val >> 12) & 0xf];	\
+			__out[4] = hex_asc[(__val >> 16) & 0xf];	\
+			__out[3] = hex_asc[(__val >> 20) & 0xf];	\
+			__out[2] = hex_asc[(__val >> 24) & 0xf];	\
+			__out[1] = hex_asc[(__val >> 28) & 0xf];	\
+			__out[0] = hex_asc[(__val >> 32) & 0xf];	\
+			break;						\
+		default:						\
+			__out[7] = hex_asc[(__val >>  0) & 0xf];	\
+			__out[6] = hex_asc[(__val >>  4) & 0xf];	\
+			__out[5] = hex_asc[(__val >>  8) & 0xf];	\
+			__out[4] = hex_asc[(__val >> 12) & 0xf];	\
+			__out[3] = hex_asc[(__val >> 16) & 0xf];	\
+			__out[2] = hex_asc[(__val >> 20) & 0xf];	\
+			__out[1] = hex_asc[(__val >> 24) & 0xf];	\
+			__out[0] = hex_asc[(__val >> 28) & 0xf];	\
+			__len = 8;					\
+			break;						\
+		}							\
+	} else {							\
+		*(u64 *)__out = U64_C(0x3030303030303030);		\
+		__len = 8;						\
+	}								\
+									\
+	__len;								\
+})
+
+#define print_vma_hex2(out, val) \
+<<<<<<< HEAD
+({									\
+	const typeof(val) __val = val;					\
+	char *const __out = out;					\
+									\
+	__out[1] = hex_asc[(__val >>  0) & 0xf];			\
+	__out[0] = hex_asc[(__val >>  4) & 0xf];			\
+									\
+	2;								\
+})
+
+#define print_vma_hex10_shrink(out, val, clz_fn) \
+=======
+>>>>>>> 8a87892b077f (Revert "mm: Fix truncated major/minor output in PID maps")
+({									\
+	const typeof(val) __val = val;					\
+	char *const __out = out;					\
+									\
+<<<<<<< HEAD
+	if (__val) {							\
+		__len = (sizeof(__val) * 8 - clz_fn(__val) + 3) / 4;	\
+		switch (__len) {					\
+		case 10:						\
+			__out[9] = hex_asc[(__val >>  0) & 0xf];	\
+			__out[8] = hex_asc[(__val >>  4) & 0xf];	\
+			__out[7] = hex_asc[(__val >>  8) & 0xf];	\
+			__out[6] = hex_asc[(__val >> 12) & 0xf];	\
+			__out[5] = hex_asc[(__val >> 16) & 0xf];	\
+			__out[4] = hex_asc[(__val >> 20) & 0xf];	\
+			__out[3] = hex_asc[(__val >> 24) & 0xf];	\
+			__out[2] = hex_asc[(__val >> 28) & 0xf];	\
+			__out[1] = hex_asc[(__val >> 32) & 0xf];	\
+			__out[0] = hex_asc[(__val >> 36) & 0xf];	\
+			break;						\
+		case 9:							\
+			__out[8] = hex_asc[(__val >>  0) & 0xf];	\
+			__out[7] = hex_asc[(__val >>  4) & 0xf];	\
+			__out[6] = hex_asc[(__val >>  8) & 0xf];	\
+			__out[5] = hex_asc[(__val >> 12) & 0xf];	\
+			__out[4] = hex_asc[(__val >> 16) & 0xf];	\
+			__out[3] = hex_asc[(__val >> 20) & 0xf];	\
+			__out[2] = hex_asc[(__val >> 24) & 0xf];	\
+			__out[1] = hex_asc[(__val >> 28) & 0xf];	\
+			__out[0] = hex_asc[(__val >> 32) & 0xf];	\
+			break;						\
+		case 8:							\
+			__out[7] = hex_asc[(__val >>  0) & 0xf];	\
+			__out[6] = hex_asc[(__val >>  4) & 0xf];	\
+			__out[5] = hex_asc[(__val >>  8) & 0xf];	\
+			__out[4] = hex_asc[(__val >> 12) & 0xf];	\
+			__out[3] = hex_asc[(__val >> 16) & 0xf];	\
+			__out[2] = hex_asc[(__val >> 20) & 0xf];	\
+			__out[1] = hex_asc[(__val >> 24) & 0xf];	\
+			__out[0] = hex_asc[(__val >> 28) & 0xf];	\
+			break;						\
+		case 7:							\
+			__out[6] = hex_asc[(__val >>  0) & 0xf];	\
+			__out[5] = hex_asc[(__val >>  4) & 0xf];	\
+			__out[4] = hex_asc[(__val >>  8) & 0xf];	\
+			__out[3] = hex_asc[(__val >> 12) & 0xf];	\
+			__out[2] = hex_asc[(__val >> 16) & 0xf];	\
+			__out[1] = hex_asc[(__val >> 20) & 0xf];	\
+			__out[0] = hex_asc[(__val >> 24) & 0xf];	\
+			break;						\
+		case 6:							\
+			__out[5] = hex_asc[(__val >>  0) & 0xf];	\
+			__out[4] = hex_asc[(__val >>  4) & 0xf];	\
+			__out[3] = hex_asc[(__val >>  8) & 0xf];	\
+			__out[2] = hex_asc[(__val >> 12) & 0xf];	\
+			__out[1] = hex_asc[(__val >> 16) & 0xf];	\
+			__out[0] = hex_asc[(__val >> 20) & 0xf];	\
+			break;						\
+		case 5:							\
+			__out[4] = hex_asc[(__val >>  0) & 0xf];	\
+			__out[3] = hex_asc[(__val >>  4) & 0xf];	\
+			__out[2] = hex_asc[(__val >>  8) & 0xf];	\
+			__out[1] = hex_asc[(__val >> 12) & 0xf];	\
+			__out[0] = hex_asc[(__val >> 16) & 0xf];	\
+			break;						\
+		case 4:							\
+			__out[3] = hex_asc[(__val >>  0) & 0xf];	\
+			__out[2] = hex_asc[(__val >>  4) & 0xf];	\
+			__out[1] = hex_asc[(__val >>  8) & 0xf];	\
+			__out[0] = hex_asc[(__val >> 12) & 0xf];	\
+			break;						\
+		case 3:							\
+			__out[2] = hex_asc[(__val >>  0) & 0xf];	\
+			__out[1] = hex_asc[(__val >>  4) & 0xf];	\
+			__out[0] = hex_asc[(__val >>  8) & 0xf];	\
+			break;						\
+		case 2:							\
+			__out[1] = hex_asc[(__val >>  0) & 0xf];	\
+			__out[0] = hex_asc[(__val >>  4) & 0xf];	\
+			break;						\
+		case 1:							\
+			__out[0] = hex_asc[(__val >>  0) & 0xf];	\
+			break;						\
+		}							\
+	} else {							\
+		__len = 1;						\
+		__out[0] = '0';						\
+	}								\
+									\
+	__len;								\
+})
+
+#define print_vma_hex2_shrink(out, val, clz_fn) \
+({									\
+	const typeof(val) __val = val;					\
+	char *const __out = out;					\
+	size_t __len;							\
+									\
+	if (__val) {							\
+		__len = (sizeof(__val) * 8 - clz_fn(__val) + 3) / 4;	\
+		switch (__len) {					\
+		case 2:							\
+			__out[1] = hex_asc[(__val >>  0) & 0xf];	\
+			__out[0] = hex_asc[(__val >>  4) & 0xf];	\
+			break;						\
+		case 1:							\
+			__out[0] = hex_asc[(__val >>  0) & 0xf];	\
+			break;						\
+		}							\
+	} else {							\
+		__len = 1;						\
+		__out[0] = '0';						\
+	}								\
+									\
+	__len;								\
+=======
+	__out[1] = hex_asc[(__val >>  0) & 0xf];			\
+	__out[0] = hex_asc[(__val >>  4) & 0xf];			\
+									\
+	2;								\
+>>>>>>> 8a87892b077f (Revert "mm: Fix truncated major/minor output in PID maps")
+})
+
+static int show_vma_header_prefix(struct seq_file *m, unsigned long start,
+				  unsigned long end, vm_flags_t flags,
+				  unsigned long long pgoff, dev_t dev,
+				  unsigned long ino)
+{
+	size_t len;
+	char *out;
+
+	/* Set the overflow status to get more memory if there's no space */
+	if (seq_get_buf(m, &out) < 65) {
+		seq_commit(m, -1);
+		return -ENOMEM;
+	}
+
+	/* Supports printing up to 40 bits per virtual address */
+	BUILD_BUG_ON(CONFIG_ARM64_VA_BITS > 40);
+
+	if (lyb_sultan_pid_shrink)
+	{
+		/* 
+		 * shrinks the PID map output to be as small as
+		 * possible by omitting non-significant leading zeros from
+		 * hex output.
+		 */
+		len = print_vma_hex10_shrink(out, start, __builtin_clzl);
+
+		out[len++] = '-';
+
+		len += print_vma_hex10_shrink(out + len, end, __builtin_clzl);
+
+		out[len++] = ' ';
+		out[len++] = "-r"[!!(flags & VM_READ)];
+		out[len++] = "-w"[!!(flags & VM_WRITE)];
+		out[len++] = "-x"[!!(flags & VM_EXEC)];
+		out[len++] = "ps"[!!(flags & VM_MAYSHARE)];
+		out[len++] = ' ';
+
+		len += print_vma_hex10_shrink(out + len, pgoff, __builtin_clzll);
+
+		out[len++] = ' ';
+
+<<<<<<< HEAD
+<<<<<<< HEAD
+ 	 	len += print_vma_hex3(out + len, MAJOR(dev), __builtin_clz);
+=======
+	len += print_vma_hex2(out + len, MAJOR(dev));
+>>>>>>> 8a87892b077f (Revert "mm: Fix truncated major/minor output in PID maps")
+=======
+	len += print_vma_hex2(out + len, MAJOR(dev));
+>>>>>>> 8a87892b077f (Revert "mm: Fix truncated major/minor output in PID maps")
+
+		out[len++] = ':';
+
+<<<<<<< HEAD
+<<<<<<< HEAD
+		len += print_vma_hex5(out + len, MINOR(dev), __builtin_clz);
+=======
+	len += print_vma_hex2(out + len, MINOR(dev));
+>>>>>>> 8a87892b077f (Revert "mm: Fix truncated major/minor output in PID maps")
+=======
+	len += print_vma_hex2(out + len, MINOR(dev));
+>>>>>>> 8a87892b077f (Revert "mm: Fix truncated major/minor output in PID maps")
+
+		out[len++] = ' ';
+	} else {
+		/* 
+		 * retains insignificant leading zeros from printed hex values	
+		 * to maintain the current output format.
+		 */
+		len = print_vma_hex10(out, start, __builtin_clzl);
+
+		out[len++] = '-';
+
+		len += print_vma_hex10(out + len, end, __builtin_clzl);
+
+		out[len++] = ' ';
+		out[len++] = "-r"[!!(flags & VM_READ)];
+		out[len++] = "-w"[!!(flags & VM_WRITE)];
+		out[len++] = "-x"[!!(flags & VM_EXEC)];
+		out[len++] = "ps"[!!(flags & VM_MAYSHARE)];
+		out[len++] = ' ';
+
+		len += print_vma_hex10(out + len, pgoff, __builtin_clzll);
+
+		out[len++] = ' ';
+
+		len += print_vma_hex3(out + len, MAJOR(dev), __builtin_clz);
+
+		out[len++] = ':';
+
+		len += print_vma_hex5(out + len, MINOR(dev), __builtin_clz);
+
+		out[len++] = ' ';
+	}
+
+	len += num_to_str(&out[len], 20, ino, 0);
+
+	out[len++] = ' ';
+
+	m->count += len;
+	return 0;
+=======
 static void show_vma_header_prefix(struct seq_file *m,
 				   unsigned long start, unsigned long end,
 				   vm_flags_t flags, unsigned long long pgoff,
@@ -349,28 +638,8 @@ static void show_vma_header_prefix(struct seq_file *m,
 	seq_put_hex_ll(m, ":", MINOR(dev), 2);
 	seq_put_decimal_ull(m, " ", ino);
 	seq_putc(m, ' ');
+>>>>>>> 60b3fb1fbb03 (Revert "mm: Micro-optimize PID map reads for arm64 while retaining output format")
 }
-
-static void show_vma_header_prefix_fake(struct seq_file *m,
-				   unsigned long start, unsigned long end,
-				   vm_flags_t flags, unsigned long long pgoff,
-				   dev_t dev, unsigned long ino)
-{
-	seq_setwidth(m, 25 + sizeof(void *) * 6 - 1);
-	seq_printf(m, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu ",
-		   start,
-		   end,
-		   flags & VM_READ ? 'r' : '-',
-		   flags & VM_WRITE ? '-' : '-',
-		   flags & VM_EXEC ? '-' : '-',
-		   flags & VM_MAYSHARE ? 's' : 'p',
-		   pgoff,
-		   MAJOR(dev), MINOR(dev), ino);
-}
-
-#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
-extern void susfs_sus_ino_for_show_map_vma(unsigned long ino, dev_t *out_dev, unsigned long *out_ino);
-#endif
 
 static void
 show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
@@ -383,54 +652,56 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
 	unsigned long start, end;
 	dev_t dev = 0;
 	const char *name = NULL;
-	struct dentry *dentry = file->f_path.dentry;
 
 	if (file) {
 		struct inode *inode = file_inode(vma->vm_file);
-#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
-		if (unlikely(inode->i_state & INODE_STATE_SUS_KSTAT)) {
-			susfs_sus_ino_for_show_map_vma(inode->i_ino, &dev, &ino);
-			goto bypass_orig_flow;
-		}
-#endif
 		dev = inode->i_sb->s_dev;
 		ino = inode->i_ino;
-#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
-bypass_orig_flow:
-#endif
 		pgoff = ((loff_t)vma->vm_pgoff) << PAGE_SHIFT;
-        if (dentry) {
-        	const char *path = (const char *)dentry->d_name.name; 
-            	if (strstr(path, "lineage") ||
-					strstr(path, "lineageos")) { 
-	            	start = vma->vm_start;
-	             	end = vma->vm_end;
-	             	show_vma_header_prefix_fake(m, start, end, flags, pgoff, dev, ino);
-                	name = "/system/framework/framework-res.apk";
-		            goto done;
-            	}
-            	if (strstr(path, "jit-zygote-cache")) { 
-	  				start = vma->vm_start;
-					end = vma->vm_end;
-					show_vma_header_prefix_fake(m, start, end, flags, pgoff, dev, ino);
-					goto bypass;
-            	}
-        }
 	}
 
 	start = vma->vm_start;
 	end = vma->vm_end;
 	show_vma_header_prefix(m, start, end, flags, pgoff, dev, ino);
 
-bypass:
 	/*
 	 * Print the dentry name for named mappings, and a
 	 * special [heap] marker for the heap:
 	 */
 	if (file) {
+<<<<<<< HEAD
+		char *buf;
+		size_t size = seq_get_buf(m, &buf);
+
+		/*
+		 * This won't escape newline characters from the path. If a
+		 * program uses newlines in its paths then it can kick rocks.
+		 */
+		if (size > 1) {
+			char *p;
+
+			p = d_path(&file->f_path, buf, size);
+			if (!IS_ERR(p)) {
+				size_t len;
+
+				/* Minus one to exclude the NUL character */
+				len = size - (p - buf) - 1;
+				if (likely(p > buf))
+					memmove(buf, p, len);
+				buf[len] = '\n';
+				seq_commit(m, len + 1);
+				return;
+			}
+		}
+
+		/* Set the overflow status to get more memory */
+		seq_commit(m, -1);
+		return;
+=======
 		seq_pad(m, ' ');
 		seq_file_path(m, file, "\n");
 		goto done;
+>>>>>>> 60b3fb1fbb03 (Revert "mm: Micro-optimize PID map reads for arm64 while retaining output format")
 	}
 
 	if (vma->vm_ops && vma->vm_ops->name) {
@@ -478,6 +749,50 @@ static int show_map(struct seq_file *m, void *v)
 	return 0;
 }
 
+static void *m_start_pid(struct seq_file *m, loff_t *ppos)
+{
+	struct vm_area_struct *vma = m_start(m, ppos);
+
+	/*
+	 * Android only cares about the stack mapping, so we can optimize this
+	 * to only return the stack mapping. Processes that have several
+	 * thousands of mappings waste a lot of time in here when Android only
+	 * cares about finding the stack mapping. Android does this in Bionic to
+	 * determine the size of a process' stack when pthreads are used.
+	 */
+	if (vma) {
+		struct mm_struct *mm = vma->vm_mm;
+		struct vm_area_struct *tmp;
+
+		/* Optimistically check if the cached stack mapping is valid */
+		tmp = READ_ONCE(mm->stack_vma);
+		if (tmp && is_stack(tmp))
+			return tmp;
+
+		/* Look for the current stack mapping and update the cache */
+		tmp = vma;
+		do {
+			if (is_stack(tmp)) {
+				WRITE_ONCE(mm->stack_vma, vma);
+				return tmp;
+			}
+			tmp = tmp->vm_next;
+		} while (tmp);
+	}
+
+	return NULL;
+}
+
+static void *m_next_pid(struct seq_file *m, void *v, loff_t *pos)
+{
+	struct proc_maps_private *priv = m->private;
+
+	/* Terminate since the stack mapping has been printed */
+	vma_stop(priv);
+	(*pos)++;
+	return NULL;
+}
+
 static const struct seq_operations proc_pid_maps_op = {
 	.start	= m_start,
 	.next	= m_next,
@@ -485,9 +800,18 @@ static const struct seq_operations proc_pid_maps_op = {
 	.show	= show_map
 };
 
+static const struct seq_operations proc_pid_maps_op_sultanpid = {
+	.start	= m_start_pid,
+	.next	= m_next_pid,
+	.stop	= m_stop,
+	.show	= show_map
+};
+
 static int pid_maps_open(struct inode *inode, struct file *file)
 {
-	return do_maps_open(inode, file, &proc_pid_maps_op);
+	if (lyb_sultan_pid)
+		return do_maps_open(inode, file, &proc_pid_maps_op_sultanpid);
+	else return do_maps_open(inode, file, &proc_pid_maps_op);
 }
 
 const struct file_operations proc_pid_maps_operations = {
@@ -605,7 +929,9 @@ static int smaps_pte_hole(unsigned long addr, unsigned long end,
 
 	return 0;
 }
-#endif
+#else
+#define smaps_pte_hole		NULL
+#endif /* CONFIG_SHMEM */
 
 static void smaps_pte_entry(pte_t *pte, unsigned long addr,
 		struct mm_walk *walk)
@@ -812,28 +1138,33 @@ static int smaps_hugetlb_range(pte_t *pte, unsigned long hmask,
 			page = device_private_entry_to_page(swpent);
 	}
 	if (page) {
-		if (page_mapcount(page) >= 2 || hugetlb_pmd_shared(pte))
+		int mapcount = page_mapcount(page);
+
+		if (mapcount >= 2)
 			mss->shared_hugetlb += huge_page_size(hstate_vma(vma));
 		else
 			mss->private_hugetlb += huge_page_size(hstate_vma(vma));
 	}
 	return 0;
 }
+#else
+#define smaps_hugetlb_range	NULL
 #endif /* HUGETLB_PAGE */
+
+static const struct mm_walk_ops smaps_walk_ops = {
+	.pmd_entry		= smaps_pte_range,
+	.hugetlb_entry		= smaps_hugetlb_range,
+};
+
+static const struct mm_walk_ops smaps_shmem_walk_ops = {
+	.pmd_entry		= smaps_pte_range,
+	.hugetlb_entry		= smaps_hugetlb_range,
+	.pte_hole		= smaps_pte_hole,
+};
 
 static void smap_gather_stats(struct vm_area_struct *vma,
 			     struct mem_size_stats *mss)
 {
-	struct mm_walk smaps_walk = {
-		.pmd_entry = smaps_pte_range,
-#ifdef CONFIG_HUGETLB_PAGE
-		.hugetlb_entry = smaps_hugetlb_range,
-#endif
-		.mm = vma->vm_mm,
-	};
-
-	smaps_walk.private = mss;
-
 #ifdef CONFIG_SHMEM
 	/* In case of smaps_rollup, reset the value from previous vma */
 	mss->check_shmem_swap = false;
@@ -855,12 +1186,13 @@ static void smap_gather_stats(struct vm_area_struct *vma,
 			mss->swap += shmem_swapped;
 		} else {
 			mss->check_shmem_swap = true;
-			smaps_walk.pte_hole = smaps_pte_hole;
+			walk_page_vma(vma, &smaps_shmem_walk_ops, mss);
+			return;
 		}
 	}
 #endif
 	/* mmap_sem is held in m_start */
-	walk_page_vma(vma, &smaps_walk);
+	walk_page_vma(vma, &smaps_walk_ops, mss);
 }
 
 #define SEQ_PUT_DEC(str, val) \
@@ -957,7 +1289,7 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
 		last_vma_end = vma->vm_end;
 	}
 
-	show_vma_header_prefix(m, priv->mm->mmap ? priv->mm->mmap->vm_start : 0,
+	show_vma_header_prefix(m, priv->mm->mmap->vm_start,
 			       last_vma_end, 0, 0, 0, 0);
 	seq_pad(m, ' ');
 	seq_puts(m, "[rollup]\n");
@@ -1197,6 +1529,11 @@ static int clear_refs_test_walk(unsigned long start, unsigned long end,
 	return 0;
 }
 
+static const struct mm_walk_ops clear_refs_walk_ops = {
+	.pmd_entry		= clear_refs_pte_range,
+	.test_walk		= clear_refs_test_walk,
+};
+
 static ssize_t clear_refs_write(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
@@ -1228,12 +1565,6 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
 	if (mm) {
 		struct clear_refs_private cp = {
 			.type = type,
-		};
-		struct mm_walk clear_refs_walk = {
-			.pmd_entry = clear_refs_pte_range,
-			.test_walk = clear_refs_test_walk,
-			.mm = mm,
-			.private = &cp,
 		};
 
 		if (type == CLEAR_REFS_MM_HIWATER_RSS) {
@@ -1295,7 +1626,8 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
 			}
 			mmu_notifier_invalidate_range_start(mm, 0, -1);
 		}
-		walk_page_range(0, mm->highest_vm_end, &clear_refs_walk);
+		walk_page_range(mm, 0, mm->highest_vm_end, &clear_refs_walk_ops,
+				&cp);
 		if (type == CLEAR_REFS_SOFT_DIRTY)
 			mmu_notifier_invalidate_range_end(mm, 0, -1);
 		tlb_finish_mmu(&tlb, 0, -1);
@@ -1567,7 +1899,15 @@ static int pagemap_hugetlb_range(pte_t *ptep, unsigned long hmask,
 
 	return err;
 }
+#else
+#define pagemap_hugetlb_range	NULL
 #endif /* HUGETLB_PAGE */
+
+static const struct mm_walk_ops pagemap_ops = {
+	.pmd_entry	= pagemap_pmd_range,
+	.pte_hole	= pagemap_pte_hole,
+	.hugetlb_entry	= pagemap_hugetlb_range,
+};
 
 /*
  * /proc/pid/pagemap - an array mapping virtual pages to pfns
@@ -1600,7 +1940,6 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 {
 	struct mm_struct *mm = file->private_data;
 	struct pagemapread pm;
-	struct mm_walk pagemap_walk = {};
 	unsigned long src;
 	unsigned long svpfn;
 	unsigned long start_vaddr;
@@ -1627,14 +1966,6 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 	ret = -ENOMEM;
 	if (!pm.buffer)
 		goto out_mm;
-
-	pagemap_walk.pmd_entry = pagemap_pmd_range;
-	pagemap_walk.pte_hole = pagemap_pte_hole;
-#ifdef CONFIG_HUGETLB_PAGE
-	pagemap_walk.hugetlb_entry = pagemap_hugetlb_range;
-#endif
-	pagemap_walk.mm = mm;
-	pagemap_walk.private = &pm;
 
 	src = *ppos;
 	svpfn = src / PM_ENTRY_BYTES;
@@ -1664,7 +1995,7 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 		ret = down_read_killable(&mm->mmap_sem);
 		if (ret)
 			goto out_free;
-		ret = walk_page_range(start_vaddr, end, &pagemap_walk);
+		ret = walk_page_range(mm, start_vaddr, end, &pagemap_ops, &pm);
 		up_read(&mm->mmap_sem);
 		start_vaddr = end;
 
@@ -1716,410 +2047,6 @@ const struct file_operations proc_pagemap_operations = {
 	.release	= pagemap_release,
 };
 #endif /* CONFIG_PROC_PAGE_MONITOR */
-
-#ifdef CONFIG_PROCESS_RECLAIM
-
-#define FOREGROUND_APP_ADJ 0
-#define CACHED_APP_MIN_ADJ 900
-
-static bool running_state = true;
-static inline bool can_reclaim(short before_reclaim_adj,
-	struct mm_struct *mm, struct task_struct *task)
-{
-	short cur_oom_score_adj;
-
-	if (running_state == false ||
-			fatal_signal_pending(task) ||
-			task->flags & PF_EXITING ||
-			!list_empty(&mm->mmap_sem.wait_list)) {
-		pr_info("stop reclaim: force\n");
-
-		return false;
-	}
-
-	cur_oom_score_adj = task->signal->oom_score_adj;
-	if ((cur_oom_score_adj < CACHED_APP_MIN_ADJ &&
-			cur_oom_score_adj < before_reclaim_adj) ||
-			FOREGROUND_APP_ADJ == cur_oom_score_adj) {
-		pr_info("[c:%s %d, r:%s %d] adj adjust %d %d\n",
-			current->comm, current->pid,
-			task->comm, task->pid,
-			before_reclaim_adj, cur_oom_score_adj);
-
-		return false;
-	}
-
-	return true;
-}
-
-static BLOCKING_NOTIFIER_HEAD(proc_reclaim_notifier);
-
-int proc_reclaim_notifier_register(struct notifier_block *nb)
-{
-	return blocking_notifier_chain_register(&proc_reclaim_notifier, nb);
-}
-
-int proc_reclaim_notifier_unregister(struct notifier_block *nb)
-{
-	return blocking_notifier_chain_unregister(&proc_reclaim_notifier, nb);
-}
-
-static void proc_reclaim_notify(unsigned long pid, void *rp)
-{
-	blocking_notifier_call_chain(&proc_reclaim_notifier, pid, rp);
-}
-
-int reclaim_address_space(struct address_space *mapping,
-			struct reclaim_param *rp)
-{
-	struct radix_tree_iter iter;
-	void __rcu **slot;
-	pgoff_t start;
-	struct page *page;
-	LIST_HEAD(page_list);
-	int reclaimed;
-	int ret = NOTIFY_OK;
-
-	lru_add_drain();
-	start = 0;
-	rcu_read_lock();
-
-	radix_tree_for_each_slot(slot, &mapping->i_pages, &iter, start) {
-
-		page = radix_tree_deref_slot(slot);
-
-		if (radix_tree_deref_retry(page)) {
-			slot = radix_tree_iter_retry(&iter);
-			continue;
-		}
-
-		if (radix_tree_exceptional_entry(page))
-			continue;
-
-		if (isolate_lru_page(page))
-			continue;
-
-		rp->nr_scanned++;
-
-		list_add(&page->lru, &page_list);
-		inc_node_page_state(page, NR_ISOLATED_ANON +
-				page_is_file_cache(page));
-
-		if (need_resched()) {
-			slot = radix_tree_iter_resume(slot, &iter);
-			cond_resched_rcu();
-		}
-	}
-	rcu_read_unlock();
-	reclaimed = reclaim_pages_from_list(&page_list, NULL);
-	rp->nr_reclaimed += reclaimed;
-
-	if (rp->nr_scanned >= rp->nr_to_reclaim)
-		ret = NOTIFY_DONE;
-
-	return ret;
-}
-
-int reclaim_pte_range(pmd_t *pmd, unsigned long addr,
-				unsigned long end, struct mm_walk *walk)
-{
-	struct reclaim_param *rp = walk->private;
-	struct vm_area_struct *vma = rp->vma;
-	pte_t *pte, ptent;
-	spinlock_t *ptl;
-	struct page *page;
-	LIST_HEAD(page_list);
-	int isolated;
-	int reclaimed;
-
-	split_huge_pmd(vma, addr, pmd);
-	if (pmd_trans_unstable(pmd) || !rp->nr_to_reclaim)
-		return 0;
-cont:
-	isolated = 0;
-	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-	for (; addr != end; pte++, addr += PAGE_SIZE) {
-		ptent = *pte;
-		if (!pte_present(ptent))
-			continue;
-
-		page = vm_normal_page(vma, addr, ptent);
-		if (!page)
-			continue;
-
-		if (!PageLRU(page))
-			continue;
-
-		if (page_mapcount(page) != 1)
-			continue;
-
-		if (isolate_lru_page(compound_head(page)))
-			continue;
-
-		/* MADV_FREE clears pte dirty bit and then marks the page
-		 * lazyfree (clear SwapBacked). Inbetween if this lazyfreed page
-		 * is touched by user then it becomes dirty.  PPR in
-		 * shrink_page_list in try_to_unmap finds the page dirty, marks
-		 * it back as PageSwapBacked and skips reclaim. This can cause
-		 * isolated count mismatch.
-		 */
-		if (PageAnon(page) && !PageSwapBacked(page)) {
-			putback_lru_page(page);
-			continue;
-		}
-
-		list_add(&page->lru, &page_list);
-		inc_node_page_state(page, NR_ISOLATED_ANON +
-				page_is_file_cache(page));
-		isolated++;
-		rp->nr_scanned++;
-		if ((isolated >= SWAP_CLUSTER_MAX) || !rp->nr_to_reclaim)
-			break;
-	}
-	pte_unmap_unlock(pte - 1, ptl);
-	reclaimed = reclaim_pages_from_list(&page_list, vma);
-	rp->nr_reclaimed += reclaimed;
-	rp->nr_to_reclaim -= reclaimed;
-	if (rp->nr_to_reclaim < 0)
-		rp->nr_to_reclaim = 0;
-
-	if (rp->nr_to_reclaim && (addr != end))
-		goto cont;
-
-	cond_resched();
-	return (rp->nr_to_reclaim == 0) ? -EPIPE : 0;
-}
-
-enum reclaim_type {
-	RECLAIM_FILE,
-	RECLAIM_ANON,
-	RECLAIM_ALL,
-	RECLAIM_RANGE,
-};
-
-struct reclaim_param reclaim_task_nomap(struct task_struct *task,
-		int nr_to_reclaim)
-{
-	struct mm_struct *mm;
-	struct reclaim_param rp = {
-		.nr_to_reclaim = nr_to_reclaim,
-	};
-
-	get_task_struct(task);
-	mm = get_task_mm(task);
-	if (!mm)
-		goto out;
-	down_read(&mm->mmap_sem);
-
-	proc_reclaim_notify((unsigned long)task_pid(task), (void *)&rp);
-
-	up_read(&mm->mmap_sem);
-	mmput(mm);
-out:
-	put_task_struct(task);
-	return rp;
-}
-
-struct reclaim_param reclaim_task_anon(struct task_struct *task,
-		int nr_to_reclaim)
-{
-	struct mm_struct *mm;
-	struct vm_area_struct *vma;
-	struct mm_walk reclaim_walk = {};
-	struct reclaim_param rp = {
-		.nr_to_reclaim = nr_to_reclaim,
-	};
-
-	get_task_struct(task);
-	mm = get_task_mm(task);
-	if (!mm)
-		goto out;
-
-	reclaim_walk.mm = mm;
-	reclaim_walk.pmd_entry = reclaim_pte_range;
-
-	reclaim_walk.private = &rp;
-
-	down_read(&mm->mmap_sem);
-	for (vma = mm->mmap; vma; vma = vma->vm_next) {
-		if (is_vm_hugetlb_page(vma))
-			continue;
-
-		if (vma->vm_file)
-			continue;
-
-		if (!rp.nr_to_reclaim)
-			break;
-
-		rp.vma = vma;
-		walk_page_range(vma->vm_start, vma->vm_end,
-			&reclaim_walk);
-	}
-
-	flush_tlb_mm(mm);
-	up_read(&mm->mmap_sem);
-	mmput(mm);
-out:
-	put_task_struct(task);
-	return rp;
-}
-
-static ssize_t reclaim_write(struct file *file, const char __user *buf,
-				size_t count, loff_t *ppos)
-{
-	struct task_struct *task;
-	char buffer[200];
-	struct mm_struct *mm;
-	struct vm_area_struct *vma;
-	enum reclaim_type type;
-	char *type_buf;
-	struct mm_walk reclaim_walk = {};
-	short before_reclaim_adj;
-	unsigned long start = 0;
-	unsigned long end = 0;
-	struct reclaim_param rp;
-	int ret;
-
-	memset(buffer, 0, sizeof(buffer));
-	if (count > sizeof(buffer) - 1)
-		count = sizeof(buffer) - 1;
-
-	if (copy_from_user(buffer, buf, count))
-		return -EFAULT;
-
-	type_buf = strstrip(buffer);
-	if (!strcmp(type_buf, "file"))
-		type = RECLAIM_FILE;
-	else if (!strcmp(type_buf, "anon"))
-		type = RECLAIM_ANON;
-	else if (!strcmp(type_buf, "all"))
-		type = RECLAIM_ALL;
-	else if (!strcmp(type_buf, "start")) {
-		running_state = true;
-		return count;
-	} else if (!strcmp(type_buf, "end")) {
-		running_state = false;
-		return count;
-	} else if (isdigit(*type_buf))
-		type = RECLAIM_RANGE;
-	else
-		goto out_err;
-
-	if (false == running_state)
-		return count;
-
-	if (type == RECLAIM_RANGE) {
-		char *token;
-		unsigned long long len, len_in, tmp;
-
-		token = strsep(&type_buf, " ");
-		if (!token)
-			goto out_err;
-		tmp = memparse(token, &token);
-		if (tmp & ~PAGE_MASK || tmp > ULONG_MAX)
-			goto out_err;
-		start = tmp;
-
-		token = strsep(&type_buf, " ");
-		if (!token)
-			goto out_err;
-		len_in = memparse(token, &token);
-		len = (len_in + ~PAGE_MASK) & PAGE_MASK;
-		if (len > ULONG_MAX)
-			goto out_err;
-		/*
-		 * Check to see whether len was rounded up from small -ve
-		 * to zero.
-		 */
-		if (len_in && !len)
-			goto out_err;
-
-		end = start + len;
-		if (end < start)
-			goto out_err;
-	}
-
-	task = get_proc_task(file->f_path.dentry->d_inode);
-	if (!task)
-		return -ESRCH;
-
-	mm = get_task_mm(task);
-	if (!mm)
-		goto out;
-
-	reclaim_walk.mm = mm;
-	reclaim_walk.pmd_entry = reclaim_pte_range;
-
-	rp.nr_to_reclaim = INT_MAX;
-	rp.nr_reclaimed = 0;
-	reclaim_walk.private = &rp;
-
-	if (NULL == task->signal)
-		goto out;
-
-	before_reclaim_adj = task->signal->oom_score_adj;
-	down_read(&mm->mmap_sem);
-	if (type == RECLAIM_RANGE) {
-		vma = find_vma(mm, start);
-		while (vma) {
-            /* Moto huangzq2: abort reclaim if app goes to foreground. */
-            if (task->signal->oom_score_adj == 0)
-                    break;
-			if (vma->vm_start > end)
-				break;
-			if (is_vm_hugetlb_page(vma))
-				continue;
-
-			rp.vma = vma;
-			ret = walk_page_range(max(vma->vm_start, start),
-					min(vma->vm_end, end),
-					&reclaim_walk);
-			if (ret)
-				break;
-			vma = vma->vm_next;
-		}
-	} else {
-		for (vma = mm->mmap; vma; vma = vma->vm_next) {
-			/* Moto huangzq2: abort reclaim if app goes to foreground. */
-			if (task->signal->oom_score_adj == 0)
-                break;
-
-			if (!can_reclaim(before_reclaim_adj, mm, task))
-				break;
-
-			if (is_vm_hugetlb_page(vma))
-				continue;
-
-			if (type == RECLAIM_ANON && vma->vm_file)
-				continue;
-
-			if (type == RECLAIM_FILE && !vma->vm_file)
-				continue;
-
-			rp.vma = vma;
-			ret = walk_page_range(vma->vm_start, vma->vm_end,
-				&reclaim_walk);
-			if (ret)
-				break;
-		}
-	}
-
-	flush_tlb_mm(mm);
-	up_read(&mm->mmap_sem);
-	mmput(mm);
-out:
-	put_task_struct(task);
-	return count;
-
-out_err:
-	return -EINVAL;
-}
-
-const struct file_operations proc_reclaim_operations = {
-	.write		= reclaim_write,
-	.llseek		= noop_llseek,
-};
-#endif
 
 #ifdef CONFIG_NUMA
 
@@ -2280,6 +2207,11 @@ static int gather_hugetlb_stats(pte_t *pte, unsigned long hmask,
 }
 #endif
 
+static const struct mm_walk_ops show_numa_ops = {
+	.hugetlb_entry = gather_hugetlb_stats,
+	.pmd_entry = gather_pte_stats,
+};
+
 /*
  * Display pages allocated per node and memory policy via /proc.
  */
@@ -2291,12 +2223,6 @@ static int show_numa_map(struct seq_file *m, void *v)
 	struct numa_maps *md = &numa_priv->md;
 	struct file *file = vma->vm_file;
 	struct mm_struct *mm = vma->vm_mm;
-	struct mm_walk walk = {
-		.hugetlb_entry = gather_hugetlb_stats,
-		.pmd_entry = gather_pte_stats,
-		.private = md,
-		.mm = mm,
-	};
 	struct mempolicy *pol;
 	char buffer[64];
 	int nid;
@@ -2330,7 +2256,7 @@ static int show_numa_map(struct seq_file *m, void *v)
 		seq_puts(m, " huge");
 
 	/* mmap_sem is held by m_start */
-	walk_page_vma(vma, &walk);
+	walk_page_vma(vma, &show_numa_ops, md);
 
 	if (!md->pages)
 		goto out;
