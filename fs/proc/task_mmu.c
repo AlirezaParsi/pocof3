@@ -381,7 +381,6 @@ static int is_stack(struct vm_area_struct *vma)
 })
 
 #define print_vma_hex2(out, val) \
-<<<<<<< HEAD
 ({									\
 	const typeof(val) __val = val;					\
 	char *const __out = out;					\
@@ -393,13 +392,11 @@ static int is_stack(struct vm_area_struct *vma)
 })
 
 #define print_vma_hex10_shrink(out, val, clz_fn) \
-=======
->>>>>>> 8a87892b077f (Revert "mm: Fix truncated major/minor output in PID maps")
 ({									\
 	const typeof(val) __val = val;					\
 	char *const __out = out;					\
+	size_t __len;							\
 									\
-<<<<<<< HEAD
 	if (__val) {							\
 		__len = (sizeof(__val) * 8 - clz_fn(__val) + 3) / 4;	\
 		switch (__len) {					\
@@ -510,12 +507,6 @@ static int is_stack(struct vm_area_struct *vma)
 	}								\
 									\
 	__len;								\
-=======
-	__out[1] = hex_asc[(__val >>  0) & 0xf];			\
-	__out[0] = hex_asc[(__val >>  4) & 0xf];			\
-									\
-	2;								\
->>>>>>> 8a87892b077f (Revert "mm: Fix truncated major/minor output in PID maps")
 })
 
 static int show_vma_header_prefix(struct seq_file *m, unsigned long start,
@@ -560,11 +551,7 @@ static int show_vma_header_prefix(struct seq_file *m, unsigned long start,
 		out[len++] = ' ';
 
 <<<<<<< HEAD
-<<<<<<< HEAD
  	 	len += print_vma_hex3(out + len, MAJOR(dev), __builtin_clz);
-=======
-	len += print_vma_hex2(out + len, MAJOR(dev));
->>>>>>> 8a87892b077f (Revert "mm: Fix truncated major/minor output in PID maps")
 =======
 	len += print_vma_hex2(out + len, MAJOR(dev));
 >>>>>>> 8a87892b077f (Revert "mm: Fix truncated major/minor output in PID maps")
@@ -572,11 +559,7 @@ static int show_vma_header_prefix(struct seq_file *m, unsigned long start,
 		out[len++] = ':';
 
 <<<<<<< HEAD
-<<<<<<< HEAD
 		len += print_vma_hex5(out + len, MINOR(dev), __builtin_clz);
-=======
-	len += print_vma_hex2(out + len, MINOR(dev));
->>>>>>> 8a87892b077f (Revert "mm: Fix truncated major/minor output in PID maps")
 =======
 	len += print_vma_hex2(out + len, MINOR(dev));
 >>>>>>> 8a87892b077f (Revert "mm: Fix truncated major/minor output in PID maps")
