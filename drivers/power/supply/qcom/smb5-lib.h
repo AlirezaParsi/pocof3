@@ -106,6 +106,8 @@ enum print_reason {
 #define QC3P5_VOTER			"QC3P5_VOTER"
 #define FCC_MAX_QC3P5_VOTER		"FCC_MAX_QC3P5_VOTER"
 
+#define BYPASS_VOTER			"BYPASS_VOTER"
+
 /* thermal micros */
 #define MAX_TEMP_LEVEL		16
 /* defined for distinguish qc class_a and class_b */
