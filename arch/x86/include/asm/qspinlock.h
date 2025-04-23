@@ -11,18 +11,12 @@
 #define _Q_PENDING_LOOPS	(1 << 9)
 
 #define queued_fetch_set_pending_acquire queued_fetch_set_pending_acquire
-
-static __always_inline bool __queued_RMW_btsl(struct qspinlock *lock)
-{
-	GEN_BINARY_RMWcc(LOCK_PREFIX "btsl", lock->val.counter,
-			 "I", _Q_PENDING_OFFSET, "%0", c);
-}
-
 static __always_inline u32 queued_fetch_set_pending_acquire(struct qspinlock *lock)
 {
 	u32 val = 0;
 
-	if (__queued_RMW_btsl(lock))
+	if (GEN_BINARY_RMWcc(LOCK_PREFIX "btsl", lock->val.counter, c,
+			     "I", _Q_PENDING_OFFSET))
 		val |= _Q_PENDING_VAL;
 
 	val |= atomic_read(&lock->val) & ~_Q_PENDING_MASK;
