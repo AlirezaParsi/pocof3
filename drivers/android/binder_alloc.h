@@ -4,6 +4,7 @@
  */
 
 <<<<<<< HEAD
+<<<<<<< HEAD
  #ifndef _LINUX_BINDER_ALLOC_H
  #define _LINUX_BINDER_ALLOC_H
  
@@ -168,6 +169,8 @@
  unsigned long
  binder_alloc_copy_user_to_buffer(struct binder_alloc *alloc,
 =======
+=======
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 #ifndef _LINUX_BINDER_ALLOC_H
 #define _LINUX_BINDER_ALLOC_H
 
@@ -331,6 +334,7 @@ binder_alloc_get_free_async_space(struct binder_alloc *alloc)
 
 unsigned long
 binder_alloc_copy_user_to_buffer(struct binder_alloc *alloc,
+<<<<<<< HEAD
 				 struct binder_buffer *buffer,
 				 binder_size_t buffer_offset,
 				 const void __user *from,
@@ -351,15 +355,24 @@ int binder_alloc_copy_from_buffer(struct binder_alloc *alloc,
 				  size_t bytes);
  
  int binder_alloc_copy_to_buffer(struct binder_alloc *alloc,
+=======
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 				 struct binder_buffer *buffer,
 				 binder_size_t buffer_offset,
-				 void *src,
+				 const void __user *from,
 				 size_t bytes);
- 
- int binder_alloc_copy_from_buffer(struct binder_alloc *alloc,
-				   void *dest,
-				   struct binder_buffer *buffer,
-				   binder_size_t buffer_offset,
-				   size_t bytes);
- 
- #endif /* _LINUX_BINDER_ALLOC_H */ 
+
+int binder_alloc_copy_to_buffer(struct binder_alloc *alloc,
+				struct binder_buffer *buffer,
+				binder_size_t buffer_offset,
+				void *src,
+				size_t bytes);
+
+int binder_alloc_copy_from_buffer(struct binder_alloc *alloc,
+				  void *dest,
+				  struct binder_buffer *buffer,
+				  binder_size_t buffer_offset,
+				  size_t bytes);
+
+#endif /* _LINUX_BINDER_ALLOC_H */
+

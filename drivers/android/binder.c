@@ -39,6 +39,7 @@
  * ...
  */
 <<<<<<< HEAD
+<<<<<<< HEAD
  #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
  #include <linux/fdtable.h>
  #include <linux/file.h>
@@ -6853,6 +6854,526 @@ binder_select_thread_ilocked(struct binder_proc *proc)
  */
 static void binder_wakeup_thread_ilocked(struct binder_proc *proc,
 					 struct binder_thread *thread,
+=======
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#include <linux/fdtable.h>
+#include <linux/file.h>
+#include <linux/freezer.h>
+#include <linux/fs.h>
+#include <linux/list.h>
+#include <linux/miscdevice.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/nsproxy.h>
+#include <linux/poll.h>
+#include <linux/debugfs.h>
+#include <linux/rbtree.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/mm.h>
+#include <linux/seq_file.h>
+#include <linux/string.h>
+#include <linux/uaccess.h>
+#include <linux/pid_namespace.h>
+#include <linux/security.h>
+#include <linux/spinlock.h>
+#include <linux/ratelimit.h>
+#include <linux/syscalls.h>
+#include <linux/task_work.h>
+#include <linux/sizes.h>
+#include <uapi/linux/eventpoll.h>
+#include <uapi/linux/sched/types.h>
+#include <uapi/linux/android/binder.h>
+#include <asm/cacheflush.h>
+#include "binder_internal.h"
+#include "binder_trace.h"
+static HLIST_HEAD(binder_deferred_list);
+static DEFINE_MUTEX(binder_deferred_lock);
+static HLIST_HEAD(binder_devices);
+static HLIST_HEAD(binder_procs);
+static DEFINE_MUTEX(binder_procs_lock);
+static HLIST_HEAD(binder_dead_nodes);
+static DEFINE_SPINLOCK(binder_dead_nodes_lock);
+static struct dentry *binder_debugfs_dir_entry_root;
+static atomic_t binder_last_id;
+
+#ifdef CONFIG_ANDROID_BINDER_LOGS
+static struct dentry *binder_debugfs_dir_entry_proc;
+
+static int proc_show(struct seq_file *m, void *unused);
+DEFINE_SHOW_ATTRIBUTE(proc);
+#endif
+
+#define FORBIDDEN_MMAP_FLAGS                (VM_WRITE)
+enum {
+	BINDER_DEBUG_USER_ERROR             = 1U << 0,
+	BINDER_DEBUG_FAILED_TRANSACTION     = 1U << 1,
+	BINDER_DEBUG_DEAD_TRANSACTION       = 1U << 2,
+	BINDER_DEBUG_OPEN_CLOSE             = 1U << 3,
+	BINDER_DEBUG_DEAD_BINDER            = 1U << 4,
+	BINDER_DEBUG_DEATH_NOTIFICATION     = 1U << 5,
+	BINDER_DEBUG_READ_WRITE             = 1U << 6,
+	BINDER_DEBUG_USER_REFS              = 1U << 7,
+	BINDER_DEBUG_THREADS                = 1U << 8,
+	BINDER_DEBUG_TRANSACTION            = 1U << 9,
+	BINDER_DEBUG_TRANSACTION_COMPLETE   = 1U << 10,
+	BINDER_DEBUG_FREE_BUFFER            = 1U << 11,
+	BINDER_DEBUG_INTERNAL_REFS          = 1U << 12,
+	BINDER_DEBUG_PRIORITY_CAP           = 1U << 13,
+	BINDER_DEBUG_SPINLOCKS              = 1U << 14,
+};
+
+#ifdef CONFIG_ANDROID_BINDER_LOGS
+static uint32_t binder_debug_mask = BINDER_DEBUG_USER_ERROR |
+	BINDER_DEBUG_FAILED_TRANSACTION | BINDER_DEBUG_DEAD_TRANSACTION;
+module_param_named(debug_mask, binder_debug_mask, uint, 0644);
+#endif
+
+char *binder_devices_param = CONFIG_ANDROID_BINDER_DEVICES;
+module_param_named(devices, binder_devices_param, charp, 0444);
+static DECLARE_WAIT_QUEUE_HEAD(binder_user_error_wait);
+static int binder_stop_on_user_error;
+static int binder_set_stop_on_user_error(const char *val,
+					 const struct kernel_param *kp)
+{
+	int ret;
+	ret = param_set_int(val, kp);
+	if (binder_stop_on_user_error < 2)
+		wake_up(&binder_user_error_wait);
+	return ret;
+}
+module_param_call(stop_on_user_error, binder_set_stop_on_user_error,
+	param_get_int, &binder_stop_on_user_error, 0644);
+
+#ifdef CONFIG_ANDROID_BINDER_LOGS
+#define binder_debug(mask, x...) \
+	do { \
+		if (binder_debug_mask & mask) \
+			pr_info_ratelimited(x); \
+	} while (0)
+#define binder_user_error(x...) \
+	do { \
+		if (binder_debug_mask & BINDER_DEBUG_USER_ERROR) \
+			pr_info_ratelimited(x); \
+		if (binder_stop_on_user_error) \
+			binder_stop_on_user_error = 2; \
+	} while (0)
+#else
+static inline void binder_debug(uint32_t mask, const char *fmt, ...)
+{
+}
+static inline void binder_user_error(const char *fmt, ...)
+{
+	if (binder_stop_on_user_error)
+		binder_stop_on_user_error = 2;
+}
+#endif
+
+#define to_flat_binder_object(hdr) \
+	container_of(hdr, struct flat_binder_object, hdr)
+#define to_binder_fd_object(hdr) container_of(hdr, struct binder_fd_object, hdr)
+#define to_binder_buffer_object(hdr) \
+	container_of(hdr, struct binder_buffer_object, hdr)
+#define to_binder_fd_array_object(hdr) \
+	container_of(hdr, struct binder_fd_array_object, hdr)
+
+#ifdef CONFIG_ANDROID_BINDER_LOGS
+static struct binder_stats binder_stats;
+static inline void binder_stats_deleted(enum binder_stat_types type)
+{
+	atomic_inc(&binder_stats.obj_deleted[type]);
+}
+static inline void binder_stats_created(enum binder_stat_types type)
+{
+	atomic_inc(&binder_stats.obj_created[type]);
+}
+struct binder_transaction_log binder_transaction_log;
+struct binder_transaction_log binder_transaction_log_failed;
+static struct binder_transaction_log_entry *binder_transaction_log_add(
+	struct binder_transaction_log *log)
+{
+	struct binder_transaction_log_entry *e;
+	unsigned int cur = atomic_inc_return(&log->cur);
+	if (cur >= ARRAY_SIZE(log->entry))
+		log->full = true;
+	e = &log->entry[cur % ARRAY_SIZE(log->entry)];
+	WRITE_ONCE(e->debug_id_done, 0);
+	/*
+	 * write-barrier to synchronize access to e->debug_id_done.
+	 * We make sure the initialized 0 value is seen before
+	 * memset() other fields are zeroed by memset.
+	 */
+	smp_wmb();
+	memset(e, 0, sizeof(*e));
+	return e;
+}
+#else
+static inline void binder_stats_deleted(enum binder_stat_types type) {}
+static inline void binder_stats_created(enum binder_stat_types type) {}
+#endif
+
+static struct kmem_cache *binder_node_pool;
+static struct kmem_cache *binder_eproc_pool;
+static struct kmem_cache *binder_ref_death_pool;
+static struct kmem_cache *binder_ref_freeze_pool;
+static struct kmem_cache *binder_ref_pool;
+static struct kmem_cache *binder_thread_pool;
+static struct kmem_cache *binder_transaction_pool;
+static struct kmem_cache *binder_work_pool;
+static struct kmem_cache *binder_twcb_pool;
+static struct kmem_cache *binder_fixup_pool;
+
+enum binder_deferred_state {
+	BINDER_DEFERRED_FLUSH        = 0x01,
+	BINDER_DEFERRED_RELEASE      = 0x02,
+};
+enum {
+	BINDER_LOOPER_STATE_REGISTERED  = 0x01,
+	BINDER_LOOPER_STATE_ENTERED     = 0x02,
+	BINDER_LOOPER_STATE_EXITED      = 0x04,
+	BINDER_LOOPER_STATE_INVALID     = 0x08,
+	BINDER_LOOPER_STATE_WAITING     = 0x10,
+	BINDER_LOOPER_STATE_POLL        = 0x20,
+};
+/**
+ * binder_proc_lock() - Acquire outer lock for given binder_proc
+ * @proc:         struct binder_proc to acquire
+ *
+ * Acquires proc->outer_lock. Used to protect binder_ref
+ * structures associated with the given proc.
+ */
+#define binder_proc_lock(proc) _binder_proc_lock(proc, __LINE__)
+static void
+_binder_proc_lock(struct binder_proc *proc, int line)
+	__acquires(&proc->outer_lock)
+{
+	binder_debug(BINDER_DEBUG_SPINLOCKS,
+		     "%s: line=%d\n", __func__, line);
+	spin_lock(&proc->outer_lock);
+}
+/**
+ * binder_proc_unlock() - Release spinlock for given binder_proc
+ * @proc:         struct binder_proc to acquire
+ *
+ * Release lock acquired via binder_proc_lock()
+ */
+#define binder_proc_unlock(_proc) _binder_proc_unlock(_proc, __LINE__)
+static void
+_binder_proc_unlock(struct binder_proc *proc, int line)
+	__releases(&proc->outer_lock)
+{
+	binder_debug(BINDER_DEBUG_SPINLOCKS,
+		     "%s: line=%d\n", __func__, line);
+	spin_unlock(&proc->outer_lock);
+}
+/**
+ * binder_inner_proc_lock() - Acquire inner lock for given binder_proc
+ * @proc:         struct binder_proc to acquire
+ *
+ * Acquires proc->inner_lock. Used to protect todo lists
+ */
+#define binder_inner_proc_lock(proc) _binder_inner_proc_lock(proc, __LINE__)
+static void
+_binder_inner_proc_lock(struct binder_proc *proc, int line)
+	__acquires(&proc->inner_lock)
+{
+	binder_debug(BINDER_DEBUG_SPINLOCKS,
+		     "%s: line=%d\n", __func__, line);
+	spin_lock(&proc->inner_lock);
+}
+/**
+ * binder_inner_proc_unlock() - Release inner lock for given binder_proc
+ * @proc:         struct binder_proc to acquire
+ *
+ * Release lock acquired via binder_inner_proc_lock()
+ */
+#define binder_inner_proc_unlock(proc) _binder_inner_proc_unlock(proc, __LINE__)
+static void
+_binder_inner_proc_unlock(struct binder_proc *proc, int line)
+	__releases(&proc->inner_lock)
+{
+	binder_debug(BINDER_DEBUG_SPINLOCKS,
+		     "%s: line=%d\n", __func__, line);
+	spin_unlock(&proc->inner_lock);
+}
+/**
+ * binder_node_lock() - Acquire spinlock for given binder_node
+ * @node:         struct binder_node to acquire
+ *
+ * Acquires node->lock. Used to protect binder_node fields
+ */
+#define binder_node_lock(node) _binder_node_lock(node, __LINE__)
+static void
+_binder_node_lock(struct binder_node *node, int line)
+	__acquires(&node->lock)
+{
+	binder_debug(BINDER_DEBUG_SPINLOCKS,
+		     "%s: line=%d\n", __func__, line);
+	spin_lock(&node->lock);
+}
+/**
+ * binder_node_unlock() - Release spinlock for given binder_proc
+ * @node:         struct binder_node to acquire
+ *
+ * Release lock acquired via binder_node_lock()
+ */
+#define binder_node_unlock(node) _binder_node_unlock(node, __LINE__)
+static void
+_binder_node_unlock(struct binder_node *node, int line)
+	__releases(&node->lock)
+{
+	binder_debug(BINDER_DEBUG_SPINLOCKS,
+		     "%s: line=%d\n", __func__, line);
+	spin_unlock(&node->lock);
+}
+/**
+ * binder_node_inner_lock() - Acquire node and inner locks
+ * @node:         struct binder_node to acquire
+ *
+ * Acquires node->lock. If node->proc also acquires
+ * proc->inner_lock. Used to protect binder_node fields
+ */
+#define binder_node_inner_lock(node) _binder_node_inner_lock(node, __LINE__)
+static void
+_binder_node_inner_lock(struct binder_node *node, int line)
+	__acquires(&node->lock) __acquires(&node->proc->inner_lock)
+{
+	binder_debug(BINDER_DEBUG_SPINLOCKS,
+		     "%s: line=%d\n", __func__, line);
+	spin_lock(&node->lock);
+	if (node->proc)
+		binder_inner_proc_lock(node->proc);
+	else
+		/* annotation for sparse */
+		__acquire(&node->proc->inner_lock);
+}
+/**
+ * binder_node_unlock() - Release node and inner locks
+ * @node:         struct binder_node to acquire
+ *
+ * Release lock acquired via binder_node_lock()
+ */
+#define binder_node_inner_unlock(node) _binder_node_inner_unlock(node, __LINE__)
+static void
+_binder_node_inner_unlock(struct binder_node *node, int line)
+	__releases(&node->lock) __releases(&node->proc->inner_lock)
+{
+	struct binder_proc *proc = node->proc;
+	binder_debug(BINDER_DEBUG_SPINLOCKS,
+		     "%s: line=%d\n", __func__, line);
+	if (proc)
+		binder_inner_proc_unlock(proc);
+	else
+		/* annotation for sparse */
+		__release(&node->proc->inner_lock);
+	spin_unlock(&node->lock);
+}
+static bool binder_worklist_empty_ilocked(struct list_head *list)
+{
+	return list_empty(list);
+}
+/**
+ * binder_worklist_empty() - Check if no items on the work list
+ * @proc:       binder_proc associated with list
+ * @list:	list to check
+ *
+ * Return: true if there are no items on list, else false
+ */
+static bool binder_worklist_empty(struct binder_proc *proc,
+				  struct list_head *list)
+{
+	bool ret;
+	binder_inner_proc_lock(proc);
+	ret = binder_worklist_empty_ilocked(list);
+	binder_inner_proc_unlock(proc);
+	return ret;
+}
+/**
+ * binder_enqueue_work_ilocked() - Add an item to the work list
+ * @work:         struct binder_work to add to list
+ * @target_list:  list to add work to
+ *
+ * Adds the work to the specified list. Asserts that work
+ * is not already on a list.
+ *
+ * Requires the proc->inner_lock to be held.
+ */
+static void
+binder_enqueue_work_ilocked(struct binder_work *work,
+			   struct list_head *target_list)
+{
+	BUG_ON(target_list == NULL);
+	BUG_ON(work->entry.next && !list_empty(&work->entry));
+	list_add_tail(&work->entry, target_list);
+}
+/**
+ * binder_enqueue_deferred_thread_work_ilocked() - Add deferred thread work
+ * @thread:       thread to queue work to
+ * @work:         struct binder_work to add to list
+ *
+ * Adds the work to the todo list of the thread. Doesn't set the process_todo
+ * flag, which means that (if it wasn't already set) the thread will go to
+ * sleep without handling this work when it calls read.
+ *
+ * Requires the proc->inner_lock to be held.
+ */
+static void
+binder_enqueue_deferred_thread_work_ilocked(struct binder_thread *thread,
+					    struct binder_work *work)
+{
+	WARN_ON(!list_empty(&thread->waiting_thread_node));
+	binder_enqueue_work_ilocked(work, &thread->todo);
+}
+/**
+ * binder_enqueue_thread_work_ilocked() - Add an item to the thread work list
+ * @thread:       thread to queue work to
+ * @work:         struct binder_work to add to list
+ *
+ * Adds the work to the todo list of the thread, and enables processing
+ * of the todo queue.
+ *
+ * Requires the proc->inner_lock to be held.
+ */
+static void
+binder_enqueue_thread_work_ilocked(struct binder_thread *thread,
+				   struct binder_work *work)
+{
+	WARN_ON(!list_empty(&thread->waiting_thread_node));
+	binder_enqueue_work_ilocked(work, &thread->todo);
+	thread->process_todo = true;
+}
+/**
+ * binder_enqueue_thread_work() - Add an item to the thread work list
+ * @thread:       thread to queue work to
+ * @work:         struct binder_work to add to list
+ *
+ * Adds the work to the todo list of the thread, and enables processing
+ * of the todo queue.
+ */
+static void
+binder_enqueue_thread_work(struct binder_thread *thread,
+			   struct binder_work *work)
+{
+	binder_inner_proc_lock(thread->proc);
+	binder_enqueue_thread_work_ilocked(thread, work);
+	binder_inner_proc_unlock(thread->proc);
+}
+static void
+binder_dequeue_work_ilocked(struct binder_work *work)
+{
+	list_del_init(&work->entry);
+}
+/**
+ * binder_dequeue_work() - Removes an item from the work list
+ * @proc:         binder_proc associated with list
+ * @work:         struct binder_work to remove from list
+ *
+ * Removes the specified work item from whatever list it is on.
+ * Can safely be called if work is not on any list.
+ */
+static void
+binder_dequeue_work(struct binder_proc *proc, struct binder_work *work)
+{
+	binder_inner_proc_lock(proc);
+	binder_dequeue_work_ilocked(work);
+	binder_inner_proc_unlock(proc);
+}
+static struct binder_work *binder_dequeue_work_head_ilocked(
+					struct list_head *list)
+{
+	struct binder_work *w;
+	w = list_first_entry_or_null(list, struct binder_work, entry);
+	if (w)
+		list_del_init(&w->entry);
+	return w;
+}
+static void
+binder_defer_work(struct binder_proc *proc, enum binder_deferred_state defer);
+static void binder_free_thread(struct binder_thread *thread);
+static void binder_free_proc(struct binder_proc *proc);
+static void binder_inc_node_tmpref_ilocked(struct binder_node *node);
+static bool binder_has_work_ilocked(struct binder_thread *thread,
+				    bool do_proc_work)
+{
+	int ret = 0;
+	if (ret)
+		return true;
+	return thread->process_todo ||
+		thread->looper_need_return ||
+		(do_proc_work &&
+		 !binder_worklist_empty_ilocked(&thread->proc->todo));
+}
+static bool binder_has_work(struct binder_thread *thread, bool do_proc_work)
+{
+	bool has_work;
+	binder_inner_proc_lock(thread->proc);
+	has_work = binder_has_work_ilocked(thread, do_proc_work);
+	binder_inner_proc_unlock(thread->proc);
+	return has_work;
+}
+static bool binder_available_for_proc_work_ilocked(struct binder_thread *thread)
+{
+	return !thread->transaction_stack &&
+		binder_worklist_empty_ilocked(&thread->todo);
+}
+static void binder_wakeup_poll_threads_ilocked(struct binder_proc *proc,
+					       bool sync)
+{
+	struct rb_node *n;
+	struct binder_thread *thread;
+	for (n = rb_first(&proc->threads); n != NULL; n = rb_next(n)) {
+		thread = rb_entry(n, struct binder_thread, rb_node);
+		if (thread->looper & BINDER_LOOPER_STATE_POLL &&
+		    binder_available_for_proc_work_ilocked(thread)) {
+			if (sync)
+				wake_up_interruptible_sync(&thread->wait);
+			else
+				wake_up_interruptible(&thread->wait);
+		}
+	}
+}
+/**
+ * binder_select_thread_ilocked() - selects a thread for doing proc work.
+ * @proc:	process to select a thread from
+ *
+ * Note that calling this function moves the thread off the waiting_threads
+ * list, so it can only be woken up by the caller of this function, or a
+ * signal. Therefore, callers *should* always wake up the thread this function
+ * returns.
+ *
+ * Return:	If there's a thread currently waiting for process work,
+ *		returns that thread. Otherwise returns NULL.
+ */
+static struct binder_thread *
+binder_select_thread_ilocked(struct binder_proc *proc)
+{
+	struct binder_thread *thread;
+	assert_spin_locked(&proc->inner_lock);
+	thread = list_first_entry_or_null(&proc->waiting_threads,
+					  struct binder_thread,
+					  waiting_thread_node);
+	if (thread)
+		list_del_init(&thread->waiting_thread_node);
+	return thread;
+}
+/**
+ * binder_wakeup_thread_ilocked() - wakes up a thread for doing proc work.
+ * @proc:	process to wake up a thread in
+ * @thread:	specific thread to wake-up (may be NULL)
+ * @sync:	whether to do a synchronous wake-up
+ *
+ * This function wakes up a thread in the @proc process.
+ * The caller may provide a specific thread to wake-up in
+ * the @thread parameter. If @thread is NULL, this function
+ * will wake up threads that have called poll().
+ *
+ * Note that for this function to work as expected, callers
+ * should first call binder_select_thread() to find a thread
+ * to handle the work (if they don't have a thread already),
+ * and pass the result into the @thread parameter.
+ */
+static void binder_wakeup_thread_ilocked(struct binder_proc *proc,
+					 struct binder_thread *thread,
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 					 bool sync)
 {
 	assert_spin_locked(&proc->inner_lock);
@@ -6895,6 +7416,7 @@ static bool binder_supported_policy(int policy)
 {
 	return is_fair_policy(policy) || is_rt_policy(policy);
 }
+<<<<<<< HEAD
 
 #ifdef CONFIG_UCLAMP_TASK
 static void set_binder_prio_uclamp(struct binder_priority *prio, struct task_struct *task)
@@ -6938,6 +7460,8 @@ static bool is_uclamp_equal(struct task_struct *task, const struct binder_priori
 }
 #endif
 
+=======
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 static int to_userspace_prio(int policy, int kernel_priority)
 {
 	if (is_fair_policy(policy))
@@ -6961,6 +7485,7 @@ static void binder_do_set_priority(struct binder_thread *thread,
 	int priority; /* user-space prio value */
 	bool has_cap_nice;
 	unsigned int policy = desired->sched_policy;
+<<<<<<< HEAD
 	struct sched_attr attrs = {
 		.sched_flags = SCHED_FLAG_RESET_ON_FORK
 	};
@@ -6973,6 +7498,10 @@ static void binder_do_set_priority(struct binder_thread *thread,
 
 	if (task->policy == policy && task->normal_prio == desired->prio
 		&& is_uclamp_equal(task, desired)) {
+=======
+
+	if (task->policy == policy && task->normal_prio == desired->prio) {
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 		spin_lock(&thread->prio_lock);
 		if (thread->prio_state == BINDER_PRIO_PENDING)
 			thread->prio_state = BINDER_PRIO_SET;
@@ -7028,6 +7557,7 @@ static void binder_do_set_priority(struct binder_thread *thread,
 		return;
 	}
 
+<<<<<<< HEAD
 	/* Set the actual priority and uclamp */
 	if (task->policy != policy || is_rt_policy(policy)) {
 		attrs.sched_policy = policy;
@@ -7039,6 +7569,16 @@ static void binder_do_set_priority(struct binder_thread *thread,
 
 	sched_setattr_nocheck(task, &attrs);
 
+=======
+	/* Set the actual priority */
+	if (task->policy != policy || is_rt_policy(policy)) {
+		struct sched_param params;
+		params.sched_priority = is_rt_policy(policy) ? priority : 0;
+		sched_setscheduler_nocheck(task,
+					   policy | SCHED_RESET_ON_FORK,
+					   &params);
+	}
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 	if (is_fair_policy(policy))
 		set_user_nice(task, priority);
 
@@ -7086,8 +7626,12 @@ static void binder_transaction_priority(struct binder_thread *thread,
 		 * SCHED_FIFO, prefer SCHED_FIFO, since it can
 		 * run unbounded, unlike SCHED_RR.
 		 */
+<<<<<<< HEAD
 		desired.prio = node_prio.prio;
 		desired.sched_policy = node_prio.sched_policy;
+=======
+		desired = node_prio;
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 	}
 
 	spin_lock(&thread->prio_lock);
@@ -7106,7 +7650,10 @@ static void binder_transaction_priority(struct binder_thread *thread,
 	} else {
 		t->saved_priority.sched_policy = task->policy;
 		t->saved_priority.prio = task->normal_prio;
+<<<<<<< HEAD
 		set_binder_prio_uclamp(&t->saved_priority, task);
+=======
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 	}
 	spin_unlock(&thread->prio_lock);
 
@@ -7612,6 +8159,13 @@ static void binder_cleanup_ref_olocked(struct binder_ref *ref)
 		binder_dequeue_work(ref->proc, &ref->death->work);
 		binder_stats_deleted(BINDER_STAT_DEATH);
 	}
+<<<<<<< HEAD
+=======
+
+	if (ref->freeze)
+		binder_dequeue_work(ref->proc, &ref->freeze->work);
+
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 	binder_stats_deleted(BINDER_STAT_REF);
 }
 /**
@@ -7732,6 +8286,11 @@ static void binder_free_ref(struct binder_ref *ref)
 		binder_free_node(ref->node);
 	if (ref->death)
 		kmem_cache_free(binder_ref_death_pool, ref->death);
+<<<<<<< HEAD
+=======
+	if (ref->freeze)
+		kmem_cache_free(binder_ref_freeze_pool, ref->freeze);
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 	kmem_cache_free(binder_ref_pool, ref);
 }
 
@@ -8334,21 +8893,39 @@ static void binder_deferred_fd_close(int fd)
 static void binder_transaction_buffer_release(struct binder_proc *proc,
 					      struct binder_thread *thread,
 					      struct binder_buffer *buffer,
+<<<<<<< HEAD
 					      binder_size_t failed_at,
 					      bool is_failure)
 {
 	int debug_id = buffer->debug_id;
 	binder_size_t off_start_offset, buffer_offset, off_end_offset;
+=======
+					      binder_size_t off_end_offset,
+					      bool is_failure)
+{
+	int debug_id = buffer->debug_id;
+	binder_size_t off_start_offset, buffer_offset;
+
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 	binder_debug(BINDER_DEBUG_TRANSACTION,
 		     "%d buffer release %d, size %zd-%zd, failed at %llx\n",
 		     proc->pid, buffer->debug_id,
 		     buffer->data_size, buffer->offsets_size,
+<<<<<<< HEAD
 		     (unsigned long long)failed_at);
 	if (buffer->target_node)
 		binder_dec_node(buffer->target_node, 1, 0);
 	off_start_offset = ALIGN(buffer->data_size, sizeof(void *));
 	off_end_offset = is_failure && failed_at ? failed_at :
 				off_start_offset + buffer->offsets_size;
+=======
+		     (unsigned long long)off_end_offset);
+
+	if (buffer->target_node)
+		binder_dec_node(buffer->target_node, 1, 0);
+	off_start_offset = ALIGN(buffer->data_size, sizeof(void *));
+
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 	for (buffer_offset = off_start_offset; buffer_offset < off_end_offset;
 	     buffer_offset += sizeof(binder_size_t)) {
 		struct binder_object_header *hdr;
@@ -8498,6 +9075,24 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 		}
 	}
 }
+<<<<<<< HEAD
+=======
+/* Clean up all the objects in the buffer */
+static inline void binder_release_entire_buffer(struct binder_proc *proc,
+						struct binder_thread *thread,
+						struct binder_buffer *buffer,
+						bool is_failure)
+{
+	binder_size_t off_end_offset;
+
+	off_end_offset = ALIGN(buffer->data_size, sizeof(void *));
+	off_end_offset += buffer->offsets_size;
+
+	binder_transaction_buffer_release(proc, thread, buffer,
+					  off_end_offset, is_failure);
+}
+
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 static int binder_translate_binder(struct flat_binder_object *fp,
 				   struct binder_transaction *t,
 				   struct binder_thread *thread)
@@ -8910,7 +9505,11 @@ static int binder_proc_transaction(struct binder_transaction *t,
 		t_outdated->buffer = NULL;
 		buffer->transaction = NULL;
 		trace_binder_transaction_update_buffer_release(buffer);
+<<<<<<< HEAD
 		binder_transaction_buffer_release(proc, NULL, buffer, 0, 0);
+=======
+		binder_release_entire_buffer(proc, NULL, buffer, false);
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 		binder_alloc_free_buf(&proc->alloc, buffer);
 		kfree(t_outdated);
 		binder_stats_deleted(BINDER_STAT_TRANSACTION);
@@ -9239,10 +9838,13 @@ static void binder_transaction(struct binder_proc *proc,
 		/* Otherwise, fall back to the default priority */
 		t->priority = target_proc->default_priority;
 	}
+<<<<<<< HEAD
 
 	if (!(t->flags & TF_ONE_WAY))
 		set_inherited_uclamp(t);
 
+=======
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 	if (target_node && target_node->txn_security_ctx) {
 		u32 secid;
 		size_t added_size;
@@ -9703,6 +10305,155 @@ err_invalid_target_handle:
 		binder_enqueue_thread_work(thread, &thread->return_error.work);
 	}
 }
+<<<<<<< HEAD
+=======
+static int
+binder_request_freeze_notification(struct binder_proc *proc,
+				   struct binder_thread *thread,
+				   struct binder_handle_cookie *handle_cookie)
+{
+	struct binder_ref_freeze *freeze;
+	struct binder_ref *ref;
+
+	freeze = kmem_cache_zalloc(binder_ref_freeze_pool, GFP_KERNEL);
+	if (!freeze)
+		return -ENOMEM;
+	binder_proc_lock(proc);
+	ref = binder_get_ref_olocked(proc, handle_cookie->handle, false);
+	if (!ref) {
+		binder_user_error("%d:%d BC_REQUEST_FREEZE_NOTIFICATION invalid ref %d\n",
+				  proc->pid, thread->pid, handle_cookie->handle);
+		binder_proc_unlock(proc);
+		kmem_cache_free(binder_ref_freeze_pool, ref->freeze);
+		return -EINVAL;
+	}
+
+	binder_node_lock(ref->node);
+	if (ref->freeze) {
+		binder_user_error("%d:%d BC_REQUEST_FREEZE_NOTIFICATION already set\n",
+				  proc->pid, thread->pid);
+		binder_node_unlock(ref->node);
+		binder_proc_unlock(proc);
+		kmem_cache_free(binder_ref_freeze_pool, ref->freeze);
+		return -EINVAL;
+	}
+
+	binder_stats_created(BINDER_STAT_FREEZE);
+	INIT_LIST_HEAD(&freeze->work.entry);
+	freeze->cookie = handle_cookie->cookie;
+	freeze->work.type = BINDER_WORK_FROZEN_BINDER;
+	ref->freeze = freeze;
+
+	if (ref->node->proc) {
+		binder_inner_proc_lock(ref->node->proc);
+		freeze->is_frozen = ref->node->proc->is_frozen;
+		binder_inner_proc_unlock(ref->node->proc);
+
+		binder_inner_proc_lock(proc);
+		binder_enqueue_work_ilocked(&freeze->work, &proc->todo);
+		binder_wakeup_proc_ilocked(proc);
+		binder_inner_proc_unlock(proc);
+	}
+
+	binder_node_unlock(ref->node);
+	binder_proc_unlock(proc);
+	return 0;
+}
+
+static int
+binder_clear_freeze_notification(struct binder_proc *proc,
+				 struct binder_thread *thread,
+				 struct binder_handle_cookie *handle_cookie)
+{
+	struct binder_ref_freeze *freeze;
+	struct binder_ref *ref;
+
+	binder_proc_lock(proc);
+	ref = binder_get_ref_olocked(proc, handle_cookie->handle, false);
+	if (!ref) {
+		binder_user_error("%d:%d BC_CLEAR_FREEZE_NOTIFICATION invalid ref %d\n",
+				  proc->pid, thread->pid, handle_cookie->handle);
+		binder_proc_unlock(proc);
+		return -EINVAL;
+	}
+
+	binder_node_lock(ref->node);
+
+	if (!ref->freeze) {
+		binder_user_error("%d:%d BC_CLEAR_FREEZE_NOTIFICATION freeze notification not active\n",
+				  proc->pid, thread->pid);
+		binder_node_unlock(ref->node);
+		binder_proc_unlock(proc);
+		return -EINVAL;
+	}
+	freeze = ref->freeze;
+	binder_inner_proc_lock(proc);
+	if (freeze->cookie != handle_cookie->cookie) {
+		binder_user_error("%d:%d BC_CLEAR_FREEZE_NOTIFICATION freeze notification cookie mismatch %016llx != %016llx\n",
+				  proc->pid, thread->pid, (u64)freeze->cookie,
+				  (u64)handle_cookie->cookie);
+		binder_inner_proc_unlock(proc);
+		binder_node_unlock(ref->node);
+		binder_proc_unlock(proc);
+		return -EINVAL;
+	}
+	ref->freeze = NULL;
+	/*
+	 * Take the existing freeze object and overwrite its work type. There are three cases here:
+	 * 1. No pending notification. In this case just add the work to the queue.
+	 * 2. A notification was sent and is pending an ack from userspace. Once an ack arrives, we
+	 *    should resend with the new work type.
+	 * 3. A notification is pending to be sent. Since the work is already in the queue, nothing
+	 *    needs to be done here.
+	 */
+	freeze->work.type = BINDER_WORK_CLEAR_FREEZE_NOTIFICATION;
+	if (list_empty(&freeze->work.entry)) {
+		binder_enqueue_work_ilocked(&freeze->work, &proc->todo);
+		binder_wakeup_proc_ilocked(proc);
+	} else if (freeze->sent) {
+		freeze->resend = true;
+	}
+	binder_inner_proc_unlock(proc);
+	binder_node_unlock(ref->node);
+	binder_proc_unlock(proc);
+	return 0;
+}
+
+static int
+binder_freeze_notification_done(struct binder_proc *proc,
+				struct binder_thread *thread,
+				binder_uintptr_t cookie)
+{
+	struct binder_ref_freeze *freeze = NULL;
+	struct binder_work *w;
+
+	binder_inner_proc_lock(proc);
+	list_for_each_entry(w, &proc->delivered_freeze, entry) {
+		struct binder_ref_freeze *tmp_freeze =
+			container_of(w, struct binder_ref_freeze, work);
+
+		if (tmp_freeze->cookie == cookie) {
+			freeze = tmp_freeze;
+			break;
+		}
+	}
+	if (!freeze) {
+		binder_user_error("%d:%d BC_FREEZE_NOTIFICATION_DONE %016llx not found\n",
+				  proc->pid, thread->pid, (u64)cookie);
+		binder_inner_proc_unlock(proc);
+		return -EINVAL;
+	}
+	binder_dequeue_work_ilocked(&freeze->work);
+	freeze->sent = false;
+	if (freeze->resend) {
+		freeze->resend = false;
+		binder_enqueue_work_ilocked(&freeze->work, &proc->todo);
+		binder_wakeup_proc_ilocked(proc);
+	}
+	binder_inner_proc_unlock(proc);
+	return 0;
+}
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 
 /**
  * binder_free_buf() - free the specified buffer
@@ -9745,7 +10496,11 @@ binder_free_buf(struct binder_proc *proc,
 		binder_node_inner_unlock(buf_node);
 	}
 	trace_binder_transaction_buffer_release(buffer);
+<<<<<<< HEAD
 	binder_transaction_buffer_release(proc, thread, buffer, 0, is_failure);
+=======
+	binder_release_entire_buffer(proc, thread, buffer, is_failure);
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 	binder_alloc_free_buf(&proc->alloc, buffer);
 }
 static int binder_thread_write(struct binder_proc *proc,
@@ -10166,6 +10921,48 @@ static int binder_thread_write(struct binder_proc *proc,
 			}
 			binder_inner_proc_unlock(proc);
 		} break;
+<<<<<<< HEAD
+=======
+
+		case BC_REQUEST_FREEZE_NOTIFICATION: {
+			struct binder_handle_cookie handle_cookie;
+			int error;
+
+			if (copy_from_user(&handle_cookie, ptr, sizeof(handle_cookie)))
+				return -EFAULT;
+			ptr += sizeof(handle_cookie);
+			error = binder_request_freeze_notification(proc, thread,
+								   &handle_cookie);
+			if (error)
+				return error;
+		} break;
+
+		case BC_CLEAR_FREEZE_NOTIFICATION: {
+			struct binder_handle_cookie handle_cookie;
+			int error;
+
+			if (copy_from_user(&handle_cookie, ptr, sizeof(handle_cookie)))
+				return -EFAULT;
+			ptr += sizeof(handle_cookie);
+			error = binder_clear_freeze_notification(proc, thread, &handle_cookie);
+			if (error)
+				return error;
+		} break;
+
+		case BC_FREEZE_NOTIFICATION_DONE: {
+			binder_uintptr_t cookie;
+			int error;
+
+			if (get_user(cookie, (binder_uintptr_t __user *)ptr))
+				return -EFAULT;
+
+			ptr += sizeof(cookie);
+			error = binder_freeze_notification_done(proc, thread, cookie);
+			if (error)
+				return error;
+		} break;
+
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 		default:
 			pr_err("%d:%d unknown command %d\n",
 			       proc->pid, thread->pid, cmd);
@@ -10533,6 +11330,49 @@ skip:
 			if (cmd == BR_DEAD_BINDER)
 				goto done; /* DEAD_BINDER notifications can cause transactions */
 		} break;
+<<<<<<< HEAD
+=======
+
+		case BINDER_WORK_FROZEN_BINDER: {
+			struct binder_ref_freeze *freeze;
+			struct binder_frozen_state_info info;
+
+			memset(&info, 0, sizeof(info));
+			freeze = container_of(w, struct binder_ref_freeze, work);
+			info.is_frozen = freeze->is_frozen;
+			info.cookie = freeze->cookie;
+			freeze->sent = true;
+			binder_enqueue_work_ilocked(w, &proc->delivered_freeze);
+			binder_inner_proc_unlock(proc);
+
+			if (put_user(BR_FROZEN_BINDER, (uint32_t __user *)ptr))
+				return -EFAULT;
+			ptr += sizeof(uint32_t);
+			if (copy_to_user(ptr, &info, sizeof(info)))
+				return -EFAULT;
+			ptr += sizeof(info);
+			binder_stat_br(proc, thread, BR_FROZEN_BINDER);
+			goto done; /* BR_FROZEN_BINDER notifications can cause transactions */
+		} break;
+
+		case BINDER_WORK_CLEAR_FREEZE_NOTIFICATION: {
+			struct binder_ref_freeze *freeze =
+			    container_of(w, struct binder_ref_freeze, work);
+			binder_uintptr_t cookie = freeze->cookie;
+
+			binder_inner_proc_unlock(proc);
+			kfree(freeze);
+			binder_stats_deleted(BINDER_STAT_FREEZE);
+			if (put_user(BR_CLEAR_FREEZE_NOTIFICATION_DONE, (uint32_t __user *)ptr))
+				return -EFAULT;
+			ptr += sizeof(uint32_t);
+			if (put_user(cookie, (binder_uintptr_t __user *)ptr))
+				return -EFAULT;
+			ptr += sizeof(binder_uintptr_t);
+			binder_stat_br(proc, thread, BR_CLEAR_FREEZE_NOTIFICATION_DONE);
+		} break;
+
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 		default:
 			binder_inner_proc_unlock(proc);
 			pr_err("%d:%d: bad work type %d\n",
@@ -10693,6 +11533,10 @@ static void binder_release_work(struct binder_proc *proc,
 				"undelivered TRANSACTION_ERROR: %u\n",
 				e->cmd);
 		} break;
+<<<<<<< HEAD
+=======
+		case BINDER_WORK_TRANSACTION_ONEWAY_SPAM_SUSPECT:
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 		case BINDER_WORK_TRANSACTION_COMPLETE: {
 			binder_debug(BINDER_DEBUG_DEAD_TRANSACTION,
 				"undelivered TRANSACTION_COMPLETE\n");
@@ -10711,6 +11555,18 @@ static void binder_release_work(struct binder_proc *proc,
 		} break;
 		case BINDER_WORK_NODE:
 			break;
+<<<<<<< HEAD
+=======
+		case BINDER_WORK_CLEAR_FREEZE_NOTIFICATION: {
+			struct binder_ref_freeze *freeze;
+
+			freeze = container_of(w, struct binder_ref_freeze, work);
+			binder_debug(BINDER_DEBUG_DEAD_TRANSACTION,
+				     "undelivered freeze notification, %016llx\n",
+				     (u64)freeze->cookie);
+			kfree(freeze);
+		} break;
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 		default:
 			pr_err("unexpected work type, %d, not freed\n",
 			       wtype);
@@ -11072,6 +11928,60 @@ static bool binder_txns_pending_ilocked(struct binder_proc *proc)
 	}
 	return false;
 }
+<<<<<<< HEAD
+=======
+static void binder_add_freeze_work(struct binder_proc *proc, bool is_frozen)
+{
+	struct binder_node *prev = NULL;
+	struct rb_node *n;
+	struct binder_ref *ref;
+
+	binder_inner_proc_lock(proc);
+	for (n = rb_first(&proc->nodes); n; n = rb_next(n)) {
+		struct binder_node *node;
+
+		node = rb_entry(n, struct binder_node, rb_node);
+		binder_inc_node_tmpref_ilocked(node);
+		binder_inner_proc_unlock(proc);
+		if (prev)
+			binder_put_node(prev);
+		binder_node_lock(node);
+		hlist_for_each_entry(ref, &node->refs, node_entry) {
+			/*
+			 * Need the node lock to synchronize
+			 * with new notification requests and the
+			 * inner lock to synchronize with queued
+			 * freeze notifications.
+			 */
+			binder_inner_proc_lock(ref->proc);
+			if (!ref->freeze) {
+				binder_inner_proc_unlock(ref->proc);
+				continue;
+			}
+			ref->freeze->work.type = BINDER_WORK_FROZEN_BINDER;
+			if (list_empty(&ref->freeze->work.entry)) {
+				ref->freeze->is_frozen = is_frozen;
+				binder_enqueue_work_ilocked(&ref->freeze->work, &ref->proc->todo);
+				binder_wakeup_proc_ilocked(ref->proc);
+			} else {
+				if (ref->freeze->sent && ref->freeze->is_frozen != is_frozen)
+					ref->freeze->resend = true;
+				ref->freeze->is_frozen = is_frozen;
+			}
+			binder_inner_proc_unlock(ref->proc);
+		}
+		prev = node;
+		binder_node_unlock(node);
+		binder_inner_proc_lock(proc);
+		if (proc->is_dead)
+			break;
+	}
+	binder_inner_proc_unlock(proc);
+	if (prev)
+		binder_put_node(prev);
+}
+
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 static int binder_ioctl_freeze(struct binder_freeze_info *info,
 			       struct binder_proc *target_proc)
 {
@@ -11082,6 +11992,10 @@ static int binder_ioctl_freeze(struct binder_freeze_info *info,
 		target_proc->async_recv = false;
 		target_proc->is_frozen = false;
 		binder_inner_proc_unlock(target_proc);
+<<<<<<< HEAD
+=======
+		binder_add_freeze_work(target_proc, false);
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 		return 0;
 	}
 	/*
@@ -11110,6 +12024,11 @@ static int binder_ioctl_freeze(struct binder_freeze_info *info,
 		binder_inner_proc_lock(target_proc);
 		target_proc->is_frozen = false;
 		binder_inner_proc_unlock(target_proc);
+<<<<<<< HEAD
+=======
+	} else {
+		binder_add_freeze_work(target_proc, true);
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 	}
 	return ret;
 }
@@ -11385,9 +12304,15 @@ static int binder_open(struct inode *nodp, struct file *filp)
 	binder_debug(BINDER_DEBUG_OPEN_CLOSE, "%s: %d:%d\n", __func__,
 		     current->group_leader->pid, current->pid);
 	eproc = kmem_cache_zalloc(binder_eproc_pool, GFP_KERNEL);
+<<<<<<< HEAD
 	proc = &eproc->proc;
 	if (proc == NULL)
 		return -ENOMEM;
+=======
+	if (eproc == NULL)
+		return -ENOMEM;
+        proc = &eproc->proc;
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 	dbitmap_init(&proc->dmap);
 	spin_lock_init(&proc->inner_lock);
 	spin_lock_init(&proc->outer_lock);
@@ -11403,9 +12328,12 @@ static int binder_open(struct inode *nodp, struct file *filp)
 		proc->default_priority.sched_policy = SCHED_NORMAL;
 		proc->default_priority.prio = NICE_TO_PRIO(0);
 	}
+<<<<<<< HEAD
 
 	set_binder_prio_uclamp(&proc->default_priority, NULL);
 
+=======
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 	/* binderfs stashes devices in i_private */
 	if (is_binderfs_device(nodp)) {
 		binder_dev = nodp->i_private;
@@ -11423,6 +12351,10 @@ static int binder_open(struct inode *nodp, struct file *filp)
 	binder_stats_created(BINDER_STAT_PROC);
 	proc->pid = current->group_leader->pid;
 	INIT_LIST_HEAD(&proc->delivered_death);
+<<<<<<< HEAD
+=======
+	INIT_LIST_HEAD(&proc->delivered_freeze);
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 	INIT_LIST_HEAD(&proc->waiting_threads);
 	filp->private_data = proc;
 	mutex_lock(&binder_procs_lock);
@@ -11631,6 +12563,11 @@ static void binder_deferred_release(struct binder_proc *proc)
 	binder_proc_unlock(proc);
 	binder_release_work(proc, &proc->todo);
 	binder_release_work(proc, &proc->delivered_death);
+<<<<<<< HEAD
+=======
+	binder_release_work(proc, &proc->delivered_freeze);
+
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 	binder_debug(BINDER_DEBUG_OPEN_CLOSE,
 		     "%s: %d threads %d, nodes %d (ref %d), refs %d, active transactions %d\n",
 		     __func__, proc->pid, threads, nodes, incoming_refs,
@@ -11750,6 +12687,15 @@ static void print_binder_work_ilocked(struct seq_file *m,
 	case BINDER_WORK_CLEAR_DEATH_NOTIFICATION:
 		seq_printf(m, "%shas cleared death notification\n", prefix);
 		break;
+<<<<<<< HEAD
+=======
+	case BINDER_WORK_FROZEN_BINDER:
+		seq_printf(m, "%shas frozen binder\n", prefix);
+		break;
+	case BINDER_WORK_CLEAR_FREEZE_NOTIFICATION:
+		seq_printf(m, "%shas cleared freeze notification\n", prefix);
+		break;
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 	default:
 		seq_printf(m, "%sunknown work: type %d\n", prefix, w->type);
 		break;
@@ -11887,6 +12833,13 @@ static void print_binder_proc(struct seq_file *m,
 		seq_puts(m, "  has delivered dead binder\n");
 		break;
 	}
+<<<<<<< HEAD
+=======
+	list_for_each_entry(w, &proc->delivered_freeze, entry) {
+		seq_puts(m, "  has delivered freeze binder\n");
+		break;
+	}
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 	binder_inner_proc_unlock(proc);
 	if (!print_all && m->count == header_pos)
 		m->count = start_pos;
@@ -11912,6 +12865,12 @@ static const char * const binder_return_strings[] = {
 	"BR_FAILED_REPLY",
 	"BR_FROZEN_REPLY",
 	"BR_ONEWAY_SPAM_SUSPECT",
+<<<<<<< HEAD
+=======
+	"UNSUPPORTED",
+	"BR_FROZEN_BINDER",
+	"BR_CLEAR_FREEZE_NOTIFICATION_DONE",
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 };
 static const char * const binder_command_strings[] = {
 	"BC_TRANSACTION",
@@ -11933,6 +12892,12 @@ static const char * const binder_command_strings[] = {
 	"BC_DEAD_BINDER_DONE",
 	"BC_TRANSACTION_SG",
 	"BC_REPLY_SG",
+<<<<<<< HEAD
+=======
+	"BC_REQUEST_FREEZE_NOTIFICATION",
+	"BC_CLEAR_FREEZE_NOTIFICATION",
+	"BC_FREEZE_NOTIFICATION_DONE",
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 };
 static const char * const binder_objstat_strings[] = {
 	"proc",
@@ -11941,7 +12906,12 @@ static const char * const binder_objstat_strings[] = {
 	"ref",
 	"death",
 	"transaction",
+<<<<<<< HEAD
 	"transaction_complete"
+=======
+	"transaction_complete",
+	"freeze",
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 };
 static void print_binder_stats(struct seq_file *m, const char *prefix,
 			       struct binder_stats *stats)
@@ -12180,7 +13150,10 @@ static int __init init_binder_device(const char *name)
 	hlist_add_head(&binder_device->hlist, &binder_devices);
 	return ret;
 }
+<<<<<<< HEAD
 
+=======
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 static int __init binder_create_pools(void)
 {
 	int ret;
@@ -12201,6 +13174,13 @@ static int __init binder_create_pools(void)
 	if (!binder_ref_death_pool)
 		goto err_ref_death_pool;
 
+<<<<<<< HEAD
+=======
+	binder_ref_freeze_pool = KMEM_CACHE(binder_ref_freeze, SLAB_HWCACHE_ALIGN);
+	if (!binder_ref_freeze_pool)
+		goto err_ref_freeze_pool;
+
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 	binder_ref_pool = KMEM_CACHE(binder_ref, SLAB_HWCACHE_ALIGN);
 	if (!binder_ref_pool)
 		goto err_ref_pool;
@@ -12238,6 +13218,11 @@ err_transaction_pool:
 err_thread_pool:
 	kmem_cache_destroy(binder_ref_pool);
 err_ref_pool:
+<<<<<<< HEAD
+=======
+	kmem_cache_destroy(binder_ref_freeze_pool);
+err_ref_freeze_pool:
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 	kmem_cache_destroy(binder_ref_death_pool);
 err_ref_death_pool:
 	kmem_cache_destroy(binder_eproc_pool);
@@ -12253,6 +13238,10 @@ static void __init binder_destroy_pools(void)
 	binder_buffer_pool_destroy();
 	kmem_cache_destroy(binder_node_pool);
 	kmem_cache_destroy(binder_eproc_pool);
+<<<<<<< HEAD
+=======
+	kmem_cache_destroy(binder_ref_freeze_pool);
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 	kmem_cache_destroy(binder_ref_death_pool);
 	kmem_cache_destroy(binder_ref_pool);
 	kmem_cache_destroy(binder_thread_pool);
@@ -12344,6 +13333,10 @@ err_init_binder_device_failed:
 	kfree(device_names);
 err_alloc_device_names_failed:
 	debugfs_remove_recursive(binder_debugfs_dir_entry_root);
+<<<<<<< HEAD
+=======
+	binder_alloc_shrinker_exit();
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
 
 err_alloc_shrinker_failed:
 	binder_destroy_pools();
@@ -12355,4 +13348,7 @@ device_initcall(binder_init);
 #include "binder_trace.h"
 EXPORT_TRACEPOINT_SYMBOL_GPL(binder_transaction_received);
 MODULE_LICENSE("GPL v2");
+<<<<<<< HEAD
 >>>>>>> 1104bc95f2cb66731f4172f1e7f7f32ab19666cf
+=======
+>>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
