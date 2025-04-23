@@ -41,6 +41,9 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> parent of 3a6b87f76f44 (Merge branch 'base' of https://github.com/AlirezaParsi/pocof3 into base)
 =======
 >>>>>>> parent of 3a6b87f76f44 (Merge branch 'base' of https://github.com/AlirezaParsi/pocof3 into base)
  #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -6335,6 +6338,7 @@
  #define CREATE_TRACE_POINTS
  #include "binder_trace.h"
  EXPORT_TRACEPOINT_SYMBOL_GPL(binder_transaction_received);
+<<<<<<< HEAD
 <<<<<<< HEAD
  MODULE_LICENSE("GPL v2");
 =======
@@ -13356,6 +13360,9 @@ MODULE_LICENSE("GPL v2");
 >>>>>>> 1104bc95f2cb66731f4172f1e7f7f32ab19666cf
 =======
 >>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
+=======
+ MODULE_LICENSE("GPL v2");
+>>>>>>> parent of 3a6b87f76f44 (Merge branch 'base' of https://github.com/AlirezaParsi/pocof3 into base)
 =======
  MODULE_LICENSE("GPL v2");
 >>>>>>> parent of 3a6b87f76f44 (Merge branch 'base' of https://github.com/AlirezaParsi/pocof3 into base)
