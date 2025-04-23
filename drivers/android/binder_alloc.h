@@ -5,6 +5,9 @@
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> parent of 3a6b87f76f44 (Merge branch 'base' of https://github.com/AlirezaParsi/pocof3 into base)
  #ifndef _LINUX_BINDER_ALLOC_H
  #define _LINUX_BINDER_ALLOC_H
  
@@ -168,6 +171,7 @@
  
  unsigned long
  binder_alloc_copy_user_to_buffer(struct binder_alloc *alloc,
+<<<<<<< HEAD
 =======
 =======
 >>>>>>> parent of 4ea390799739 (Merge remote-tracking branch 'upstream' into base)
@@ -349,6 +353,8 @@ int binder_alloc_copy_to_buffer(struct binder_alloc *alloc,
 int binder_alloc_copy_from_buffer(struct binder_alloc *alloc,
 				  void *dest,
 >>>>>>> 1104bc95f2cb66731f4172f1e7f7f32ab19666cf
+=======
+>>>>>>> parent of 3a6b87f76f44 (Merge branch 'base' of https://github.com/AlirezaParsi/pocof3 into base)
 				  struct binder_buffer *buffer,
 				  binder_size_t buffer_offset,
 				  const void __user *from,
