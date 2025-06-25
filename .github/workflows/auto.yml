@@ -106,7 +106,7 @@ jobs:
 
     - name: Clone kernel source
       run: |
-        git clone --depth=1 ${{ github.event.inputs.KERNEL_TREE }} -b ${{ github.event.inputs.KERNEL_TREE_BRANCH }} kernel_tree
+        git clone --depth=1 ${{ github.event.inputs.KERNEL_TREE }} #-b ${{ github.event.inputs.KERNEL_TREE_BRANCH }} kernel_tree
         echo "kernel-folder=$(pwd)/kernel_tree" >> $GITHUB_OUTPUT
       working-directory: ${{ steps.workspace.outputs.workspace-folder }}
       id: kernel
@@ -114,6 +114,7 @@ jobs:
     - name: Building kernel
       run: |
         git pull
+        git checkout staging
         git cherry-pick c392c8c3bcb7e4ecfebb9a38e627321a85e0ae45 210396a9118fb7e2de2b7f99bd2cf86050dfceb3 a34bbb74170e92093caefcbf838a379309e68c5d f80b879d5b5e4b7a32af2fcf2bd403c5f2c8b8e1
         curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
         export ARCH=arm64
