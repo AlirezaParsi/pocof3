@@ -1,4 +1,4 @@
-name: alioth-v2
+name: auto
 
 on:
   pull_request:
