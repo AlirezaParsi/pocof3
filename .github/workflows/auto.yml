@@ -141,7 +141,7 @@ jobs:
 
     - name: Download and Prepare Thumbnails
       run: |
-        curl -o aosp_thumbnail.jpg "https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/last/thumbnail.jpg"
+        curl -o aosp_thumbnail.jpg "https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/thumbnail.jpg"
         convert aosp_thumbnail.jpg -resize 320x320 -quality 80 -format jpg aosp_thumbnail.jpg
         identify aosp_thumbnail.jpg
 
