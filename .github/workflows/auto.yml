@@ -1,7 +1,6 @@
-name: auto
+name: alioth-v2-auto-sync
 
 on:
-  pull_request:
   workflow_dispatch:
     inputs:
       BUILD_TITLE:
@@ -23,6 +22,8 @@ on:
         description: 'Upload to release'
         type: boolean
         default: false
+  schedule:
+    - cron: '0 18 * * *'
 
 jobs:
   build:
@@ -38,7 +39,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
-        python-version: '3.9'  # Use a compatible Python version
+        python-version: '3.9'
 
     - name: Install dependencies
       run: |
@@ -78,7 +79,7 @@ jobs:
         CODENAME: ${{ github.event.inputs.CODENAME }}
         UPLOAD_TO_RELEASE: ${{ github.event.inputs.UPLOAD_TO_RELEASE }}
         WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        WORKFLOW_FILE: ${{ github.workflow }}.yml  # Pass workflow file name
+        WORKFLOW_FILE: ${{ github.workflow }}.yml
         TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       run: |
@@ -104,18 +105,29 @@ jobs:
       working-directory: ${{ steps.workspace.outputs.workspace-folder }}
       id: tools
 
-    - name: Clone kernel source
+    - name: Clone and apply custom commits
       run: |
-        git clone --depth=1 ${{ github.event.inputs.KERNEL_TREE }} #-b ${{ github.event.inputs.KERNEL_TREE_BRANCH }} kernel_tree
-        echo "kernel-folder=$(pwd)/kernel_tree" >> $GITHUB_OUTPUT
+        # Clone the original source with full history for cherry-pick
+        git clone ${{ github.event.inputs.KERNEL_TREE }} -b ${{ github.event.inputs.KERNEL_TREE_BRANCH }} kernel_tree
+        
+        cd kernel_tree
+        
+        # Configure git identity
+        git config --global user.email "action@github.com"
+        git config --global user.name "GitHub Action"
+        git remote add myfork https://github.com/AlirezaParsi/pocof3
+        git fetch myfork last --depth=10
+        git cherry-pick c392c8c3bcb7e4ecfebb9a38e627321a85e0ae45
+        git cherry-pick 210396a9118fb7e2de2b7f99bd2cf86050dfceb3
+        git cherry-pick a34bbb74170e92093caefcbf838a379309e68c5d
+        git cherry-pick f80b879d5b5e4b7a32af2fcf2bd403c5f2c8b8e1
+        
+        echo "kernel-folder=$(pwd)" >> $GITHUB_OUTPUT
       working-directory: ${{ steps.workspace.outputs.workspace-folder }}
       id: kernel
 
     - name: Building kernel
       run: |
-        git pull
-        git checkout staging
-        git cherry-pick c392c8c3bcb7e4ecfebb9a38e627321a85e0ae45 210396a9118fb7e2de2b7f99bd2cf86050dfceb3 a34bbb74170e92093caefcbf838a379309e68c5d f80b879d5b5e4b7a32af2fcf2bd403c5f2c8b8e1
         curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
         export ARCH=arm64
         export SUBARCH=ARM64
@@ -129,7 +141,7 @@ jobs:
 
     - name: Download and Prepare Thumbnails
       run: |
-        curl -o aosp_thumbnail.jpg "https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/base/thumbnail.jpg"
+        curl -o aosp_thumbnail.jpg "https://raw.githubusercontent.com/AlirezaParsi/pocof3/refs/heads/last/thumbnail.jpg"
         convert aosp_thumbnail.jpg -resize 320x320 -quality 80 -format jpg aosp_thumbnail.jpg
         identify aosp_thumbnail.jpg
 
@@ -147,7 +159,7 @@ jobs:
         if [ -e "dtbo.img" ]; then
           cp -f dtbo.img AnyKernel3
         fi
-        build_date=$(date +"%Y%m%d-%H%M%S")  # Date and time for ZIP filename
+        build_date=$(date +"%Y%m%d-%H%M%S")
         name=ALPkernel-${{ github.event.inputs.CODENAME }}-$build_date.zip
         cd AnyKernel3
         zip -q -r $name *
@@ -199,7 +211,7 @@ jobs:
         DOWNLOAD_LINK: ${{ github.event.inputs.UPLOAD_TO_RELEASE == 'true' && format('{0}/{1}/releases/tag/{2}-{3}', github.server_url, github.repository, github.event.inputs.CODENAME, steps.build_date.outputs.build_date) || '' }}
         FILE_PATH: ${{ steps.kernel.outputs.kernel-folder }}/out/arch/arm64/boot/${{ steps.anykernel.outputs.zipname }}
         THUMBNAIL_PATH: aosp_thumbnail.jpg
-        WORKFLOW_FILE: ${{ github.workflow }}.yml  # Pass workflow file name
+        WORKFLOW_FILE: ${{ github.workflow }}.yml
         TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         TELEGRAM_CHAT_ID_2: ${{ secrets.TELEGRAM_CHAT_ID_2 || '' }}
@@ -216,7 +228,7 @@ jobs:
         ELAPSED_TIME: ${{ steps.build.outputs.elapsed_time }}
         WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         UPLOAD_TO_RELEASE: ${{ github.event.inputs.UPLOAD_TO_RELEASE }}
-        WORKFLOW_FILE: ${{ github.workflow }}.yml  # Pass workflow file name
+        WORKFLOW_FILE: ${{ github.workflow }}.yml
         TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       run: |
@@ -231,7 +243,7 @@ jobs:
         WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         UPLOAD_TO_RELEASE: ${{ github.event.inputs.UPLOAD_TO_RELEASE }}
         GITHUB_ACTOR: ${{ github.actor }}
-        WORKFLOW_FILE: ${{ github.workflow }}.yml  # Pass workflow file name
+        WORKFLOW_FILE: ${{ github.workflow }}.yml
         TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       run: |
