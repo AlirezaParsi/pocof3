@@ -94,20 +94,9 @@ static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time)
 	if (!cpufreq_this_cpu_can_update(sg_policy->policy))
 		return false;
 
-	if (unlikely(READ_ONCE(sg_policy->limits_changed))) {
-		WRITE_ONCE(sg_policy->limits_changed, false);
+	if (unlikely(sg_policy->limits_changed)) {
+		sg_policy->limits_changed = false;
 		sg_policy->need_freq_update = true;
-
-		/*
-		 * The above limits_changed update must occur before the reads
-		 * of policy limits in cpufreq_driver_resolve_freq() or a policy
-		 * limits update might be missed, so use a memory barrier to
-		 * ensure it.
-		 *
-		 * This pairs with the write memory barrier in sugov_limits().
-		 */
-		smp_mb();
-
 		return true;
 	} else if (sg_policy->need_freq_update) {
 		/* ignore_dl_rate_limit() wants a new frequency to be found. */
@@ -129,6 +118,20 @@ static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time)
 static bool sugov_update_next_freq(struct sugov_policy *sg_policy, u64 time,
 				   unsigned int next_freq)
 {
+	if (sg_policy->need_freq_update) {
+		sg_policy->need_freq_update = false;
+		/*
+		 * The policy limits have changed, but if the return value of
+		 * cpufreq_driver_resolve_freq() after applying the new limits
+		 * is still equal to the previously selected frequency, the
+		 * driver callback need not be invoked unless the driver
+		 * specifically wants that to happen on every update of the
+		 * policy limits.
+		 */
+		if (cpufreq_driver_test_flags(CPUFREQ_NEED_UPDATE_LIMITS))
+			goto must_update;
+	}
+
 	/*
 	 * When a frequency update isn't mandatory (!need_freq_update), the rate
 	 * limit is checked again upon frequency reduction because systems with
@@ -140,25 +143,12 @@ static bool sugov_update_next_freq(struct sugov_policy *sg_policy, u64 time,
 	 * systems. A check for arch_scale_freq_invariant() is omitted here
 	 * because unconditionally rechecking the rate limit is cheaper.
 	 */
-	if (sg_policy->need_freq_update) {
-		sg_policy->need_freq_update = false;
-		/*
-		 * The policy limits have changed, but if the return value of
-		 * cpufreq_driver_resolve_freq() after applying the new limits
-		 * is still equal to the previously selected frequency, the
-		 * driver callback need not be invoked unless the driver
-		 * specifically wants that to happen on every update of the
-		 * policy limits.
-		 */
-		if (sg_policy->next_freq == next_freq &&
-		    !cpufreq_driver_test_flags(CPUFREQ_NEED_UPDATE_LIMITS))
-			return false;
-        } else if (next_freq == sg_policy->next_freq ||
-                   (next_freq < sg_policy->next_freq &&
-                    sugov_should_rate_limit(sg_policy, time))) {
-		  return false;
-	}
+	if (next_freq == sg_policy->next_freq ||
+	    (next_freq < sg_policy->next_freq &&
+	     sugov_should_rate_limit(sg_policy, time)))
+		return false;
 
+must_update:
 	sg_policy->next_freq = next_freq;
 	sg_policy->last_freq_update_time = time;
 
@@ -349,17 +339,30 @@ unsigned long schedutil_cpu_util(int cpu, unsigned long util_cfs,
 	return min(scale, util);
 }
 
-static __always_inline
-unsigned long apply_dvfs_headroom(int cpu, unsigned long util)
+static inline unsigned long apply_dvfs_headroom(unsigned long util, int cpu)
 {
-	unsigned long headroom;
+    	unsigned long capacity = capacity_orig_of(cpu);
+    	unsigned long delta, headroom, min_util;
 
-	if (cpumask_test_cpu(cpu, cpu_lp_mask))
-		headroom = util + (util >> 1);
-	else
-		headroom = util + (util >> 2);
+    	if (util >= capacity)
+        	return util;
+        /*
+         * Quadratic taper the boosting at the top end as these are expensive
+         * and we don't need that much of a big headroom as we approach max
+         * capacity
+         */
+	delta = capacity - util;
+	headroom = (delta * delta) / (5 * capacity);
 
-	return headroom;
+	/* 10% of capacity threshold */
+    	min_util = capacity / 10;
+
+    	/* Suppress boosting below the threshold */
+    	if (util < min_util) {
+        	headroom = (headroom * util * util) / (min_util * min_util);
+    	}
+
+    	return util + headroom;
 }
 
 unsigned long sugov_effective_cpu_perf(int cpu, unsigned long actual,
@@ -367,7 +370,7 @@ unsigned long sugov_effective_cpu_perf(int cpu, unsigned long actual,
 				 unsigned long max)
 {
 	/* Add dvfs headroom to actual utilization */
-	actual = apply_dvfs_headroom(cpu, actual);
+	actual = apply_dvfs_headroom(actual, cpu);
 	/* Actually we don't need to target the max performance */
 	if (actual < max)
 		max = actual;
@@ -959,16 +962,7 @@ static void sugov_limits(struct cpufreq_policy *policy)
 		raw_spin_unlock_irqrestore(&sg_policy->update_lock, flags);
 	}
 
-	/*
-	 * The limits_changed update below must take place before the updates
-	 * of policy limits in cpufreq_set_policy() or a policy limits update
-	 * might be missed, so use a memory barrier to ensure it.
-	 *
-	 * This pairs with the memory barrier in sugov_should_update_freq().
-	 */
-	smp_wmb();
-
-	WRITE_ONCE(sg_policy->limits_changed, true);
+	sg_policy->limits_changed = true;
 }
 
 static struct cpufreq_governor schedutil_gov = {

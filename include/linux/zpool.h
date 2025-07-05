@@ -18,25 +18,6 @@ struct zpool_ops {
 	int (*evict)(struct zpool *pool, unsigned long handle);
 };
 
-/*
- * Control how a handle is mapped.  It will be ignored if the
- * implementation does not support it.  Its use is optional.
- * Note that this does not refer to memory protection, it
- * refers to how the memory will be copied in/out if copying
- * is necessary during mapping; read-write is the safest as
- * it copies the existing memory in on map, and copies the
- * changed memory back out on unmap.  Write-only does not copy
- * in the memory and should only be used for initialization.
- * If in doubt, use ZPOOL_MM_DEFAULT which is read-write.
- */
-enum zpool_mapmode {
-	ZPOOL_MM_RW, /* normal read-write mapping */
-	ZPOOL_MM_RO, /* read-only (no copy-out at unmap time) */
-	ZPOOL_MM_WO, /* write-only (no copy-in at map time) */
-
-	ZPOOL_MM_DEFAULT = ZPOOL_MM_RW
-};
-
 bool zpool_has_pool(char *type);
 
 struct zpool *zpool_create_pool(const char *type, const char *name,
@@ -54,10 +35,14 @@ void zpool_free(struct zpool *pool, unsigned long handle);
 int zpool_shrink(struct zpool *pool, unsigned int pages,
 			unsigned int *reclaimed);
 
-void *zpool_map_handle(struct zpool *pool, unsigned long handle,
-			enum zpool_mapmode mm);
+void *zpool_obj_read_begin(struct zpool *zpool, unsigned long handle,
+			   void *local_copy);
 
-void zpool_unmap_handle(struct zpool *pool, unsigned long handle);
+void zpool_obj_read_end(struct zpool *zpool, unsigned long handle,
+			void *handle_mem);
+
+void zpool_obj_write(struct zpool *zpool, unsigned long handle,
+		     void *handle_mem, size_t mem_len);
 
 u64 zpool_get_total_size(struct zpool *pool);
 
@@ -97,9 +82,12 @@ struct zpool_driver {
 	int (*shrink)(void *pool, unsigned int pages,
 				unsigned int *reclaimed);
 
-	void *(*map)(void *pool, unsigned long handle,
-				enum zpool_mapmode mm);
-	void (*unmap)(void *pool, unsigned long handle);
+	void *(*obj_read_begin)(void *pool, unsigned long handle,
+				void *local_copy);
+	void (*obj_read_end)(void *pool, unsigned long handle,
+			     void *handle_mem);
+	void (*obj_write)(void *pool, unsigned long handle,
+			  void *handle_mem, size_t mem_len);
 
 	u64 (*total_size)(void *pool);
 };
