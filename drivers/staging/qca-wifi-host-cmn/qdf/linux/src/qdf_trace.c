@@ -22,6 +22,7 @@
  *  Trace, logging, and debugging definitions and APIs
  */
 
+#ifdef WLAN_DEBUG
 /* Include Files */
 #include "qdf_str.h"
 #include <qdf_trace.h>
@@ -3981,7 +3982,7 @@ int qdf_get_pidx(void)
 qdf_export_symbol(qdf_get_pidx);
 
 #ifdef PANIC_ON_BUG
-#if defined(CONFIG_SLUB_DEBUG) && defined(WLAN_DEBUG)
+#ifdef CONFIG_SLUB_DEBUG
 void __qdf_bug(void)
 {
 	BUG();
@@ -3989,4 +3990,5 @@ void __qdf_bug(void)
 qdf_export_symbol(__qdf_bug);
 #endif /* CONFIG_SLUB_DEBUG */
 #endif /* PANIC_ON_BUG */
+#endif /* WLAN_DEBUG */
 

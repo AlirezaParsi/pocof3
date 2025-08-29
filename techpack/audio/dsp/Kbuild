@@ -81,6 +81,21 @@ ifeq ($(KERNEL_BUILD), 0)
 		export
 		INCS    +=  -include $(AUDIO_ROOT)/config/sdm660autoconf.h
 	endif
+	ifeq ($(CONFIG_ARCH_SDM450), y)
+		include $(AUDIO_ROOT)/config/sdm450auto.conf
+		export
+		INCS    +=  -include $(AUDIO_ROOT)/config/sdm450autoconf.h
+	endif
+	ifeq ($(CONFIG_ARCH_SDM439), y)
+		include $(AUDIO_ROOT)/config/sdm450auto.conf
+		export
+		INCS    +=  -include $(AUDIO_ROOT)/config/sdm450autoconf.h
+	endif
+	ifeq ($(CONFIG_ARCH_MSM8917), y)
+		include $(AUDIO_ROOT)/config/sdm450auto.conf
+		export
+		INCS    +=  -include $(AUDIO_ROOT)/config/sdm450autoconf.h
+	endif
 endif
 
 
@@ -167,6 +182,7 @@ ifdef CONFIG_SND_SOC_MSM_QDSP6V2_VM
 	Q6_OBJS += avtimer.o
 	Q6_OBJS += q6_init.o
 endif
+
 ifdef CONFIG_XT_LOGGING
 	Q6_OBJS += sp_params.o
 endif
@@ -232,32 +248,13 @@ CDEFINES +=	-DANI_LITTLE_BYTE_ENDIAN \
 		-Wall\
 		-D__linux__
 
-ifdef CONFIG_BOARD_ALIOTH
-CDEFINES += -DCONFIG_US_PROXIMITY
-endif
-
-ifdef CONFIG_BOARD_APOLLO
-CDEFINES += -DCONFIG_US_PROXIMITY
-endif
-
-ifdef CONFIG_BOARD_CAS
-CDEFINES += -DCONFIG_US_PROXIMITY
-endif
-
-ifdef CONFIG_BOARD_LMI
+ifeq (y, $(filter y,$(CONFIG_BOARD_LMI) $(CONFIG_BOARD_MUNCH)))
 CDEFINES += -DTFA_ADSP_SUPPORTED
 endif
 
-ifdef CONFIG_BOARD_THYME
-CDEFINES += -DCONFIG_US_PROXIMITY
-endif
-
-ifdef CONFIG_BOARD_PICASSO
-CDEFINES += -DTFA_ADSP_SUPPORTED
-endif
-
-ifdef CONFIG_BOARD_UMI
 CDEFINES += -DAUDIO_FORCE_RESTART_ADSP
+ifeq (y, $(filter y,$(CONFIG_BOARD_DAGU) $(CONFIG_BOARD_MUNCH) $(CONFIG_BOARD_PSYCHE)))
+CDEFINES += -DAUDIO_FORCE_RESTART_ADSP_TEMP
 endif
 
 KBUILD_CPPFLAGS += $(CDEFINES)
@@ -288,18 +285,6 @@ endif
 
 ifeq ($(KERNEL_BUILD), 0)
 KBUILD_EXTRA_SYMBOLS +=$(OUT)/obj/vendor/qcom/opensource/audio-kernel/ipc/Module.symvers
-endif
-
-ifdef CONFIG_BOARD_XIAOMI_SM8250
-	CDEFINES += -DAUDIO_SM8250_FLAG
-endif
-
-ifdef CONFIG_BOARD_ENUMA
-    CDEFINES += -DCONFIG_TARGET_PRODUCT_ENUMA
-endif
-
-ifdef CONFIG_BOARD_ELISH
-    CDEFINES += -DCONFIG_TARGET_PRODUCT_ELISH
 endif
 
 ifeq ($(KERNEL_BUILD), 1)

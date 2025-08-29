@@ -69,6 +69,12 @@ static struct cpufreq_driver *cpufreq_driver;
 static DEFINE_PER_CPU(struct cpufreq_policy *, cpufreq_cpu_data);
 static DEFINE_RWLOCK(cpufreq_driver_lock);
 
+static DEFINE_STATIC_KEY_FALSE(cpufreq_freq_invariance);
+bool cpufreq_supports_freq_invariance(void)
+{
+	return static_branch_likely(&cpufreq_freq_invariance);
+}
+
 /* Flag to suspend/resume CPUFreq governors */
 static bool cpufreq_suspended;
 
@@ -156,13 +162,14 @@ u64 get_cpu_idle_time(unsigned int cpu, u64 *wall, int io_busy)
 }
 EXPORT_SYMBOL_GPL(get_cpu_idle_time);
 
-__weak void arch_set_freq_scale(struct cpumask *cpus, unsigned long cur_freq,
-		unsigned long max_freq)
+__weak void arch_set_freq_scale(const struct cpumask *cpus,
+				unsigned long cur_freq,
+				unsigned long max_freq)
 {
 }
 EXPORT_SYMBOL_GPL(arch_set_freq_scale);
 
-__weak void arch_set_max_freq_scale(struct cpumask *cpus,
+__weak void arch_set_max_freq_scale(const struct cpumask *cpus,
 				    unsigned long policy_max_freq)
 {
 }
@@ -322,11 +329,14 @@ static void cpufreq_notify_transition(struct cpufreq_policy *policy,
 				      struct cpufreq_freqs *freqs,
 				      unsigned int state)
 {
+	int cpu;
+
 	BUG_ON(irqs_disabled());
 
 	if (cpufreq_disabled())
 		return;
 
+	freqs->policy = policy;
 	freqs->flags = cpufreq_driver->flags;
 	pr_debug("notification %u of frequency transition to %u kHz\n",
 		 state, freqs->new);
@@ -338,18 +348,14 @@ static void cpufreq_notify_transition(struct cpufreq_policy *policy,
 		 * which is not equal to what the cpufreq core thinks is
 		 * "old frequency".
 		 */
-		if (!(cpufreq_driver->flags & CPUFREQ_CONST_LOOPS)) {
-			if (policy->cur && (policy->cur != freqs->old)) {
-				pr_debug("Warning: CPU frequency is %u, cpufreq assumed %u kHz\n",
-					 freqs->old, policy->cur);
-				freqs->old = policy->cur;
-			}
+		if (policy->cur && policy->cur != freqs->old) {
+			pr_debug("Warning: CPU frequency is %u, cpufreq assumed %u kHz\n",
+				 freqs->old, policy->cur);
+			freqs->old = policy->cur;
 		}
 
-		for_each_cpu(freqs->cpu, policy->cpus) {
-			srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
-						 CPUFREQ_PRECHANGE, freqs);
-		}
+		srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
+					 CPUFREQ_PRECHANGE, freqs);
 
 		adjust_jiffies(CPUFREQ_PRECHANGE, freqs);
 		break;
@@ -359,11 +365,11 @@ static void cpufreq_notify_transition(struct cpufreq_policy *policy,
 		pr_debug("FREQ: %u - CPUs: %*pbl\n", freqs->new,
 			 cpumask_pr_args(policy->cpus));
 
-		for_each_cpu(freqs->cpu, policy->cpus) {
-			trace_cpu_frequency(freqs->new, freqs->cpu);
-			srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
-						 CPUFREQ_POSTCHANGE, freqs);
-		}
+		for_each_cpu(cpu, policy->cpus)
+			trace_cpu_frequency(freqs->new, cpu);
+
+		srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
+					 CPUFREQ_POSTCHANGE, freqs);
 
 		cpufreq_stats_record_transition(policy, freqs->new);
 		cpufreq_times_record_transition(policy, freqs->new);
@@ -426,8 +432,14 @@ void cpufreq_freq_transition_end(struct cpufreq_policy *policy,
 
 	cpufreq_notify_post_transition(policy, freqs, transition_failed);
 
+	arch_set_freq_scale(policy->related_cpus,
+			    policy->cur,
+			    policy->cpuinfo.max_freq);
+
+	spin_lock(&policy->transition_lock);
 	policy->transition_ongoing = false;
 	policy->transition_task = NULL;
+	spin_unlock(&policy->transition_lock);
 
 	wake_up(&policy->transition_wait);
 }
@@ -1562,8 +1574,7 @@ static unsigned int __cpufreq_get(struct cpufreq_policy *policy)
 	if (policy->fast_switch_enabled)
 		return ret_freq;
 
-	if (ret_freq && policy->cur &&
-		!(cpufreq_driver->flags & CPUFREQ_CONST_LOOPS)) {
+	if (has_target() && ret_freq && policy->cur) {
 		/* verify no discrepancy between actual and
 					saved value exists */
 		if (unlikely(ret_freq != policy->cur)) {
@@ -1889,19 +1900,71 @@ EXPORT_SYMBOL(cpufreq_unregister_notifier);
 unsigned int cpufreq_driver_fast_switch(struct cpufreq_policy *policy,
 					unsigned int target_freq)
 {
-	int ret;
+	unsigned int freq;
+	int cpu;
 
 	target_freq = clamp_val(target_freq, policy->min, policy->max);
+	freq = cpufreq_driver->fast_switch(policy, target_freq);
 
-	ret = cpufreq_driver->fast_switch(policy, target_freq);
-	if (ret) {
-		cpufreq_times_record_transition(policy, ret);
-		cpufreq_stats_record_transition(policy, ret);
+	if (!freq)
+		return 0;
+
+	policy->cur = freq;
+
+	cpufreq_times_record_transition(policy, freq);
+	cpufreq_stats_record_transition(policy, freq);
+
+	arch_set_freq_scale(policy->related_cpus, freq,
+			    policy->cpuinfo.max_freq);
+
+	if (trace_cpu_frequency_enabled()) {
+		for_each_cpu(cpu, policy->cpus)
+			trace_cpu_frequency(freq, cpu);
 	}
 
-	return ret;
+	return freq;
 }
 EXPORT_SYMBOL_GPL(cpufreq_driver_fast_switch);
+
+/**
+ * cpufreq_driver_adjust_perf - Adjust CPU performance level in one go.
+ * @cpu: Target CPU.
+ * @min_perf: Minimum (required) performance level (units of @capacity).
+ * @target_perf: Terget (desired) performance level (units of @capacity).
+ * @capacity: Capacity of the target CPU.
+ *
+ * Carry out a fast performance level switch of @cpu without sleeping.
+ *
+ * The driver's ->adjust_perf() callback invoked by this function must be
+ * suitable for being called from within RCU-sched read-side critical sections
+ * and it is expected to select a suitable performance level equal to or above
+ * @min_perf and preferably equal to or below @target_perf.
+ *
+ * This function must not be called if policy->fast_switch_enabled is unset.
+ *
+ * Governors calling this function must guarantee that it will never be invoked
+ * twice in parallel for the same CPU and that it will never be called in
+ * parallel with either ->target() or ->target_index() or ->fast_switch() for
+ * the same CPU.
+ */
+void cpufreq_driver_adjust_perf(unsigned int cpu,
+				 unsigned long min_perf,
+				 unsigned long target_perf,
+				 unsigned long capacity)
+{
+	cpufreq_driver->adjust_perf(cpu, min_perf, target_perf, capacity);
+}
+
+/**
+ * cpufreq_driver_has_adjust_perf - Check "direct fast switch" callback.
+ *
+ * Return 'true' if the ->adjust_perf callback is present for the
+ * current driver or 'false' otherwise.
+ */
+bool cpufreq_driver_has_adjust_perf(void)
+{
+	return !!cpufreq_driver->adjust_perf;
+}
 
 /* Must set freqs->new to intermediate frequency */
 static int __target_intermediate(struct cpufreq_policy *policy,
@@ -2545,6 +2608,15 @@ int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 	cpufreq_driver = driver_data;
 	write_unlock_irqrestore(&cpufreq_driver_lock, flags);
 
+	/*
+	 * Mark support for the scheduler's frequency invariance engine for
+	 * drivers that implement target(), target_index() or fast_switch().
+	 */
+	if (!cpufreq_driver->setpolicy) {
+		static_branch_enable_cpuslocked(&cpufreq_freq_invariance);
+		pr_debug("supports frequency invariance");
+	}
+
 	if (driver_data->setpolicy)
 		driver_data->flags |= CPUFREQ_CONST_LOOPS;
 
@@ -2613,6 +2685,7 @@ int cpufreq_unregister_driver(struct cpufreq_driver *driver)
 	cpus_read_lock();
 	subsys_interface_unregister(&cpufreq_interface);
 	remove_boost_sysfs_file();
+	static_branch_disable_cpuslocked(&cpufreq_freq_invariance);
 	cpuhp_remove_state_nocalls_cpuslocked(hp_online);
 
 	write_lock_irqsave(&cpufreq_driver_lock, flags);

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #include <linux/debugfs.h>
@@ -234,26 +233,6 @@ struct smb5 {
 static struct smb_charger *__smbchg;
 
 static int __debug_mask = 0;
-
-static BLOCKING_NOTIFIER_HEAD(pen_charge_state_notifier_list);
-
-int pen_charge_state_notifier_register_client(struct notifier_block *nb)
-{
-	return blocking_notifier_chain_register(&pen_charge_state_notifier_list, nb);
-}
-EXPORT_SYMBOL(pen_charge_state_notifier_register_client);
-
-int pen_charge_state_notifier_unregister_client(struct notifier_block *nb)
-{
-	return blocking_notifier_chain_unregister(&pen_charge_state_notifier_list, nb);
-}
-EXPORT_SYMBOL(pen_charge_state_notifier_unregister_client);
-
-int pen_charge_state_notifier_call_chain(unsigned long val, void *v)
-{
-	return blocking_notifier_call_chain(&pen_charge_state_notifier_list, val, v);
-}
-EXPORT_SYMBOL(pen_charge_state_notifier_call_chain);
 
 static ssize_t pd_disabled_show(struct device *dev, struct device_attribute
 				*attr, char *buf)
@@ -680,9 +659,6 @@ static int smb5_parse_dt_misc(struct smb5 *chip, struct device_node *node)
 	chg->sw_jeita_enabled = of_property_read_bool(node,
 				"qcom,sw-jeita-enable");
 
-	chg->jeita_arb_enable = of_property_read_bool(node,
-				"qcom,jeita-arb-enable");
-
 	chg->six_pin_step_charge_enable = of_property_read_bool(node,
 				"mi,six-pin-step-chg");
 
@@ -692,12 +668,14 @@ static int smb5_parse_dt_misc(struct smb5 *chip, struct device_node *node)
 	chg->support_ffc = of_property_read_bool(node,
 				"mi,support-ffc");
 
+	chg->jeita_arb_enable = of_property_read_bool(node,
+				"qcom,jeita-arb-enable");
+
 	chg->pd_not_supported = chg->pd_not_supported ||
 			of_property_read_bool(node, "qcom,usb-pd-disable");
 
 	chg->lpd_disabled = chg->lpd_disabled ||
 			of_property_read_bool(node, "qcom,lpd-disable");
-	chg->moisture_detection_enabled = !chg->lpd_disabled;
 
 	chg->use_bq_pump = of_property_read_bool(node,
 				"mi,use-bq-pump");
@@ -1159,6 +1137,9 @@ static int smb5_parse_dt_misc(struct smb5 *chip, struct device_node *node)
 		}
 	}
 
+	chg->support_ext_5v_boost = of_property_read_bool(node,
+				"qcom,support-ext-5v-boost");
+
 	of_property_read_u32(node, "qcom,fcc-step-delay-ms",
 					&chg->chg_param.fcc_step_delay_ms);
 	if (chg->chg_param.fcc_step_delay_ms <= 0)
@@ -1447,6 +1428,7 @@ static enum power_supply_property smb5_usb_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_PD_CURRENT_MAX,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
+	POWER_SUPPLY_PROP_VBUS_DISABLE,
 	POWER_SUPPLY_PROP_TYPE,
 	POWER_SUPPLY_PROP_TYPEC_MODE,
 	POWER_SUPPLY_PROP_TYPEC_POWER_ROLE,
@@ -1468,7 +1450,6 @@ static enum power_supply_property smb5_usb_props[] = {
 	POWER_SUPPLY_PROP_CONNECTOR_TYPE,
 	POWER_SUPPLY_PROP_CONNECTOR_HEALTH,
 	POWER_SUPPLY_PROP_CONNECTOR_TEMP,
-	POWER_SUPPLY_PROP_VBUS_DISABLE,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX_LIMIT,
@@ -1487,9 +1468,9 @@ static enum power_supply_property smb5_usb_props[] = {
 	POWER_SUPPLY_PROP_APSD_RERUN,
 	POWER_SUPPLY_PROP_APSD_TIMEOUT,
 	POWER_SUPPLY_PROP_APDO_MAX,
+	POWER_SUPPLY_PROP_POWER_MAX,
 	POWER_SUPPLY_PROP_CHARGER_STATUS,
 	POWER_SUPPLY_PROP_INPUT_VOLTAGE_SETTLED,
-	POWER_SUPPLY_PROP_MOISTURE_DETECTION_ENABLE,
 };
 
 static int smb5_usb_get_prop(struct power_supply *psy,
@@ -1503,9 +1484,6 @@ static int smb5_usb_get_prop(struct power_supply *psy,
 	val->intval = 0;
 
 	switch (psp) {
-	case POWER_SUPPLY_PROP_MOISTURE_DETECTION_ENABLE:
-		val->intval = chg->moisture_detection_enabled ? 1 : 0;
-		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		rc = smblib_get_prop_usb_present(chg, val);
 		break;
@@ -1532,7 +1510,7 @@ static int smb5_usb_get_prop(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 		if (smblib_get_fastcharge_mode(chg))
-	#ifdef CONFIG_BOARD_CAS
+    	#if defined(CONFIG_BOARD_CAS) || defined(CONFIG_BOARD_MUNCH)
 			val->intval = 12000000;
 	#elif defined CONFIG_BOARD_CMI
 			val->intval = 10000000;
@@ -1572,7 +1550,6 @@ static int smb5_usb_get_prop(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_QUICK_CHARGE_TYPE:
 		val->intval = smblib_get_quick_charge_type(chg);
-		pr_err("quick charge type is %d\n", val->intval);
 		break;
 	case POWER_SUPPLY_PROP_TYPEC_MODE:
 		rc = smblib_get_usb_prop_typec_mode(chg, val);
@@ -1696,6 +1673,9 @@ static int smb5_usb_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_APDO_MAX:
 		val->intval = chg->apdo_max;
 		break;
+	case POWER_SUPPLY_PROP_POWER_MAX:
+		val->intval = smblib_get_adapter_power_max(chg);
+		break;
 	case POWER_SUPPLY_PROP_CHARGER_STATUS:
 		val->intval = 0;
 		if (chg->sdam_base) {
@@ -1740,9 +1720,6 @@ static int smb5_usb_set_prop(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_FAKE_HVDCP3:
 		chg->fake_hvdcp3 = val->intval;
-		break;
-	case POWER_SUPPLY_PROP_MOISTURE_DETECTION_ENABLE:
-		rc = smblib_enable_moisture_detection(chg, val->intval == 1);
 		break;
 	case POWER_SUPPLY_PROP_PD_CURRENT_MAX:
 		rc = smblib_set_prop_pd_current_max(chg, val);
@@ -1870,7 +1847,6 @@ static int smb5_usb_prop_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_ADAPTER_CC_MODE:
 	case POWER_SUPPLY_PROP_APSD_RERUN:
 	case POWER_SUPPLY_PROP_APDO_MAX:
-	case POWER_SUPPLY_PROP_MOISTURE_DETECTION_ENABLE:
 		return 1;
 	default:
 		break;
@@ -2403,7 +2379,7 @@ static int smb5_init_dc_psy(struct smb5 *chip)
 static int smb5_get_prop_input_voltage_regulation(struct smb_charger *chg,
 					union power_supply_propval *val)
 {
-	int rc = 0;
+	int rc;
 
 	chg->idtp_psy = power_supply_get_by_name("idt");
 	if (chg->idtp_psy) {
@@ -2429,7 +2405,7 @@ static int smb5_get_prop_input_voltage_regulation(struct smb_charger *chg,
 static int smb5_get_prop_input_voltage_vrect(struct smb_charger *chg,
 					union power_supply_propval *val)
 {
-	int rc = 0;
+	int rc;
 
 	chg->idtp_psy = power_supply_get_by_name("idt");
 	if (chg->idtp_psy) {
@@ -2456,7 +2432,7 @@ static int smb5_get_prop_input_voltage_vrect(struct smb_charger *chg,
 static int smb5_get_prop_rx_iout(struct smb_charger *chg,
 					union power_supply_propval *val)
 {
-	int rc = 0;
+	int rc;
 
 	chg->idtp_psy = power_supply_get_by_name("idt");
 	if (chg->idtp_psy) {
@@ -2481,7 +2457,7 @@ static int smb5_get_prop_rx_iout(struct smb_charger *chg,
 static int smb5_get_prop_wireless_signal(struct smb_charger *chg,
 				union power_supply_propval *val)
 {
-	int rc = 0;
+	int rc;
 
 	chg->idtp_psy = power_supply_get_by_name("idt");
 	if (chg->idtp_psy) {
@@ -2504,7 +2480,7 @@ static int smb5_get_prop_wireless_signal(struct smb_charger *chg,
 static int smb5_set_prop_input_voltage_regulation(struct smb_charger *chg,
 				const union power_supply_propval *val)
 {
-	int rc = 0;
+	int rc;
 
 	chg->idtp_psy = power_supply_get_by_name("idt");
 	if (chg->idtp_psy) {
@@ -2574,7 +2550,7 @@ static int smb5_get_prop_reverse_pen_soc(struct smb_charger *chg,
 static int smb5_set_prop_div2_mode(struct smb_charger *chg,
 				const union power_supply_propval *val)
 {
-	int rc = 0;
+	int rc;
 
 	dev_info(chg->dev, "%s: set mode is = %d\n",
 				__func__, val->intval);
@@ -2622,7 +2598,7 @@ static int smb5_get_prop_div2_mode(struct smb_charger *chg,
 static int smb5_set_prop_reverse_chg_mode(struct smb_charger *chg,
 				const union power_supply_propval *val)
 {
-	int rc = 0;
+	int rc;
 
 	dev_info(chg->dev, "%s: set mode is = %d\n",
 				__func__, val->intval);
@@ -2648,7 +2624,7 @@ static int smb5_set_prop_reverse_chg_mode(struct smb_charger *chg,
 static int smb5_set_prop_otg_mode(struct smb_charger *chg,
 				const union power_supply_propval *val)
 {
-	int rc = 0;
+	int rc;
 
 	dev_info(chg->dev, "%s: set mode is = %d\n",
 				__func__, val->intval);
@@ -2674,7 +2650,7 @@ static int smb5_set_prop_otg_mode(struct smb_charger *chg,
 static int smb5_get_prop_reverse_chg_mode(struct smb_charger *chg,
 				union power_supply_propval *val)
 {
-	int rc = 0;
+	int rc;
 
 	chg->idtp_psy = power_supply_get_by_name("idt");
 	if (chg->idtp_psy) {
@@ -2700,7 +2676,7 @@ static int smb5_get_prop_reverse_chg_mode(struct smb_charger *chg,
 static int smb5_get_prop_wirless_chip_ok(struct smb_charger *chg,
 				union power_supply_propval *val)
 {
-	int rc = 0;
+	int rc;
 
 	chg->idtp_psy = power_supply_get_by_name("idt");
 	if (chg->idtp_psy) {
@@ -2772,6 +2748,7 @@ static enum power_supply_property smb5_wireless_props[] = {
 	POWER_SUPPLY_PROP_OTG_STATE,
 	POWER_SUPPLY_PROP_WIRELESS_FW_VERSION,
 	POWER_SUPPLY_PROP_CHIP_OK,
+	POWER_SUPPLY_PROP_WLS_CAR_ADAPTER,
 };
 
 static int smb5_wireless_set_prop(struct power_supply *psy,
@@ -2827,7 +2804,6 @@ static int smb5_wireless_set_prop(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_REVERSE_PEN_CHG_STATE:
 		chg->reverse_pen_chg_state = val->intval;
-		pen_charge_state_notifier_call_chain(chg->reverse_pen_chg_state == 4, NULL);
 		break;
 	case POWER_SUPPLY_PROP_REVERSE_CHG_STATE:
 		chg->reverse_chg_state = val->intval;
@@ -2840,6 +2816,9 @@ static int smb5_wireless_set_prop(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_OTG_STATE:
 		rc = smb5_set_prop_otg_mode(chg, val);
+		break;
+	case POWER_SUPPLY_PROP_WLS_CAR_ADAPTER:
+		chg->wls_car_adapter = val->intval;
 		break;
 	default:
 		return -EINVAL;
@@ -2938,7 +2917,9 @@ static int smb5_wireless_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_OTG_STATE:
 		val->intval = 0;
 		break;
-
+	case POWER_SUPPLY_PROP_WLS_CAR_ADAPTER:
+		val->intval = chg->wls_car_adapter;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -2969,6 +2950,7 @@ static int smb5_wireless_prop_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_REVERSE_CHG_STATE:
 	case POWER_SUPPLY_PROP_REVERSE_PEN_CHG_STATE:
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
+	case POWER_SUPPLY_PROP_WLS_CAR_ADAPTER:
 		return 1;
 	default:
 		break;
@@ -3553,7 +3535,7 @@ static int smb5_configure_typec(struct smb_charger *chg)
 	 * cables due to VBUS attachment prior to CC attach/detach. Reset
 	 * the legacy detection logic by enabling/disabling the typeC mode.
 	 */
-	if (chg->pd_not_supported && (val & TYPEC_LEGACY_CABLE_STATUS_BIT)) {
+	if (val & TYPEC_LEGACY_CABLE_STATUS_BIT) {
 		pval.intval = POWER_SUPPLY_TYPEC_PR_NONE;
 		rc = smblib_set_prop_typec_power_role(chg, &pval);
 		if (rc < 0) {
@@ -4048,10 +4030,9 @@ static int smb5_init_connector_type(struct smb_charger *chg)
 	 */
 	if (chg->chg_param.smb_version == PMI632_SUBTYPE) {
 		schgm_flash_init(chg);
+		smblib_rerun_apsd_if_required(chg);
 	}
 
-	smblib_rerun_apsd_if_required(chg);
-	
 	return 0;
 
 }
@@ -5024,7 +5005,6 @@ static int smb5_probe(struct platform_device *pdev)
 	chg->main_fcc_max = -EINVAL;
 	chg->warm_fake_charging = false;
 	chg->fake_dc_on = false;
-	chg->moisture_detection_enabled = true;
 	mutex_init(&chg->adc_lock);
 
 	chg->regmap = dev_get_regmap(chg->dev->parent, NULL);

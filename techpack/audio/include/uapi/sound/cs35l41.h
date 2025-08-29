@@ -78,10 +78,9 @@ struct cs35l41_private {
 	struct soc_enum fast_switch_enum;
 	const char **fast_switch_names;
 	struct mutex rate_lock;
-	int dc_current_cnt;
 };
 
 int cs35l41_probe(struct cs35l41_private *cs35l41,
-				struct cs35l41_platform_data *pdata);
+		  struct cs35l41_platform_data *pdata);
 int spk_id_get(struct device_node *np);
 #endif /* __CS35L41_H */

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/clk.h>
@@ -46,7 +47,12 @@
 #define TX_MACRO_DMIC_UNMUTE_DELAY_MS	40
 #define TX_MACRO_AMIC_UNMUTE_DELAY_MS	100
 #define TX_MACRO_DMIC_HPF_DELAY_MS	100
+
+#if defined(CONFIG_BOARD_PSYCHE) || defined(CONFIG_BOARD_MUNCH)
+#define TX_MACRO_AMIC_HPF_DELAY_MS	300
+#else
 #define TX_MACRO_AMIC_HPF_DELAY_MS	100
+#endif
 
 static int tx_unmute_delay = TX_MACRO_DMIC_UNMUTE_DELAY_MS;
 struct tx_macro_priv *g_tx_priv;
@@ -179,7 +185,7 @@ struct tx_macro_priv {
 	int dec_mode[NUM_DECIMATORS];
 	bool bcs_clk_en;
 	bool hs_slow_insert_complete;
-	int amic_sample_rate;
+	int pcm_rate[NUM_DECIMATORS];
 };
 
 static bool tx_macro_get_data(struct snd_soc_component *component,
@@ -503,23 +509,23 @@ static void tx_macro_tx_hpf_corner_freq_callback(struct work_struct *work)
 		snd_soc_component_update_bits(component, hpf_gate_reg,
 						0x03, 0x02);
 		/* Add delay between toggle hpf gate based on sample rate */
-		switch(tx_priv->amic_sample_rate) {
-		case 8000:
+		switch (tx_priv->pcm_rate[hpf_work->decimator]) {
+		case 0:
 			usleep_range(125, 130);
 			break;
-		case 16000:
+		case 1:
 			usleep_range(62, 65);
 			break;
-		case 32000:
+		case 3:
 			usleep_range(31, 32);
 			break;
-		case 48000:
+		case 4:
 			usleep_range(20, 21);
 			break;
-		case 96000:
+		case 5:
 			usleep_range(10, 11);
 			break;
-		case 192000:
+		case 6:
 			usleep_range(5, 6);
 			break;
 		default:
@@ -941,6 +947,13 @@ void bolero_tx_macro_mute_hs(void)
 		return;
 
 	component = g_tx_priv->component;
+
+	if (delayed_work_pending(&g_tx_priv->tx_hs_unmute_dwork)) {
+		dev_err(component->dev, "%s: there is already a work, give up unmute\n",
+				__func__);
+		return;
+	}
+
 	g_tx_priv->reg_before_mute = snd_soc_component_read32(component, BOLERO_CDC_TX0_TX_VOL_CTL);
 	dev_info(component->dev, "%s: the reg value before mute is: %#x \n",
 			__func__, g_tx_priv->reg_before_mute);
@@ -977,6 +990,7 @@ static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 		return -EINVAL;
 
 	decimator = w->shift;
+
 	dev_dbg(component->dev, "%s(): widget = %s decimator = %u\n", __func__,
 			w->name, decimator);
 
@@ -991,7 +1005,7 @@ static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 	tx_fs_reg = BOLERO_CDC_TX0_TX_PATH_CTL +
 				TX_MACRO_TX_PATH_OFFSET * decimator;
 
-	tx_priv->amic_sample_rate = (snd_soc_component_read32(component,
+	tx_priv->pcm_rate[decimator] = (snd_soc_component_read32(component,
 				     tx_fs_reg) & 0x0F);
 
 	switch (event) {
@@ -1054,9 +1068,15 @@ static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 				   msecs_to_jiffies(tx_unmute_delay));
 		if (tx_priv->tx_hpf_work[decimator].hpf_cut_off_freq !=
 							CF_MIN_3DB_150HZ) {
+#if defined(CONFIG_BOARD_PSYCHE) || defined(CONFIG_BOARD_MUNCH)
+			queue_delayed_work(system_freezable_wq,
+				&tx_priv->tx_hpf_work[decimator].dwork,
+				msecs_to_jiffies(hpf_delay));
+#else
 			queue_delayed_work(system_freezable_wq,
 					&tx_priv->tx_hpf_work[decimator].dwork,
 					msecs_to_jiffies(100));
+#endif
 			snd_soc_component_update_bits(component,
 					hpf_gate_reg, 0x03, 0x02);
 			if (!is_amic_enabled(component, decimator))
@@ -2483,7 +2503,11 @@ static int tx_macro_register_event_listener(struct snd_soc_component *component,
 			ret = swrm_wcd_notify(
 				tx_priv->swr_ctrl_data[0].tx_swr_pdev,
 				SWR_REGISTER_WAKEUP, NULL);
+			msm_cdc_pinctrl_set_wakeup_capable(
+					tx_priv->tx_swr_gpio_p, false);
 		} else {
+			msm_cdc_pinctrl_set_wakeup_capable(
+					tx_priv->tx_swr_gpio_p, true);
 			ret = swrm_wcd_notify(
 				tx_priv->swr_ctrl_data[0].tx_swr_pdev,
 				SWR_DEREGISTER_WAKEUP, NULL);
@@ -2514,8 +2538,6 @@ static int tx_macro_tx_va_mclk_enable(struct tx_macro_priv *tx_priv,
 					__func__);
 				goto exit;
 			}
-			msm_cdc_pinctrl_set_wakeup_capable(
-					tx_priv->tx_swr_gpio_p, false);
 		}
 
 		clk_tx_ret = bolero_clk_rsc_request_clock(tx_priv->dev,
@@ -2640,8 +2662,6 @@ tx_clk:
 						   TX_CORE_CLK,
 						   false);
 		if (tx_priv->swr_clk_users == 0) {
-			msm_cdc_pinctrl_set_wakeup_capable(
-					tx_priv->tx_swr_gpio_p, true);
 			ret = msm_cdc_pinctrl_select_sleep_state(
 						tx_priv->tx_swr_gpio_p);
 			if (ret < 0) {
@@ -2707,25 +2727,22 @@ static int tx_macro_clk_switch(struct snd_soc_component *component, int clk_src)
 
 static int tx_macro_core_vote(void *handle, bool enable)
 {
-	int rc = 0;
 	struct tx_macro_priv *tx_priv = (struct tx_macro_priv *) handle;
 
 	if (tx_priv == NULL) {
 		pr_err("%s: tx priv data is NULL\n", __func__);
 		return -EINVAL;
 	}
-
 	if (enable) {
 		pm_runtime_get_sync(tx_priv->dev);
-		if (bolero_check_core_votes(tx_priv->dev))
-			rc = 0;
-		else
-			rc = -ENOTSYNC;
-	} else {
 		pm_runtime_put_autosuspend(tx_priv->dev);
 		pm_runtime_mark_last_busy(tx_priv->dev);
 	}
-	return rc;
+
+	if (bolero_check_core_votes(tx_priv->dev))
+		return 0;
+	else
+		return -EINVAL;
 }
 
 static int tx_macro_swrm_clock(void *handle, bool enable)
@@ -3306,13 +3323,13 @@ static int tx_macro_probe(struct platform_device *pdev)
 			"%s: register macro failed\n", __func__);
 		goto err_reg_macro;
 	}
+	if (is_used_tx_swr_gpio)
+		schedule_work(&tx_priv->tx_macro_add_child_devices_work);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, AUTO_SUSPEND_DELAY);
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 	pm_suspend_ignore_children(&pdev->dev, true);
 	pm_runtime_enable(&pdev->dev);
-	if (is_used_tx_swr_gpio)
-		schedule_work(&tx_priv->tx_macro_add_child_devices_work);
 
 	return 0;
 err_reg_macro:

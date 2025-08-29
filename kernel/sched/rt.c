@@ -8,6 +8,7 @@
 #include "pelt.h"
 
 #include <trace/events/sched.h>
+#include <linux/interrupt.h>
 
 #include "walt.h"
 
@@ -569,11 +570,6 @@ static void sched_rt_rq_dequeue(struct rt_rq *rt_rq)
 		dequeue_rt_entity(rt_se, 0);
 }
 
-static inline int rt_rq_throttled(struct rt_rq *rt_rq)
-{
-	return rt_rq->rt_throttled && !rt_rq->rt_nr_boosted;
-}
-
 static int rt_se_boosted(struct sched_rt_entity *rt_se)
 {
 	struct rt_rq *rt_rq = group_rt_rq(rt_se);
@@ -648,11 +644,6 @@ static inline void sched_rt_rq_enqueue(struct rt_rq *rt_rq)
 static inline void sched_rt_rq_dequeue(struct rt_rq *rt_rq)
 {
 	dequeue_top_rt_rq(rt_rq, rt_rq->rt_nr_running);
-}
-
-static inline int rt_rq_throttled(struct rt_rq *rt_rq)
-{
-	return rt_rq->rt_throttled;
 }
 
 static inline const struct cpumask *sched_rt_period_mask(void)
@@ -1471,30 +1462,25 @@ static void yield_task_rt(struct rq *rq)
 #ifdef CONFIG_SMP
 static int find_lowest_rq(struct task_struct *task);
 
-#ifdef CONFIG_RT_SOFTIRQ_AWARE_SCHED
 /*
- * Return whether the given cpu is currently non-preemptible
- * while handling a potentially long softirq, or if the current
- * task is likely to block preemptions soon because it is a
- * ksoftirq thread that is handling softirqs.
+ * Return whether the task on the given cpu is currently non-preemptible
+ * while handling a potentially long softint, or if the task is likely
+ * to block preemptions soon because (a) it is a ksoftirq thread that is
+ * handling slow softints, (b) it is idle and therefore likely to start
+ * processing the irq's immediately, (c) the cpu is currently handling
+ * hard irq's and will soon move on to the softirq handler.
  */
-static bool cpu_busy_with_softirqs(int cpu)
+bool
+task_may_not_preempt(struct task_struct *task, int cpu)
 {
-	u32 softirqs = per_cpu(active_softirqs, cpu) |
-		       __cpu_softirq_pending(cpu);
+	__u32 softirqs = per_cpu(active_softirqs, cpu) |
+			 __IRQ_STAT(cpu, __softirq_pending);
+	struct task_struct *cpu_ksoftirqd = per_cpu(ksoftirqd, cpu);
 
-	return softirqs & LONG_SOFTIRQ_MASK;
-}
-#else
-static bool cpu_busy_with_softirqs(int cpu)
-{
-	return false;
-}
-#endif /* CONFIG_RT_SOFTIRQ_AWARE_SCHED */
-
-static bool rt_task_fits_cpu(struct task_struct *p, int cpu)
-{
-	return rt_task_fits_capacity(p, cpu) && !cpu_busy_with_softirqs(cpu);
+	return ((softirqs & LONG_SOFTIRQ_MASK) &&
+		(task == cpu_ksoftirqd || is_idle_task(task) ||
+		 (task_thread_info(task)->preempt_count
+			& (HARDIRQ_MASK | SOFTIRQ_MASK))));
 }
 
 static int
@@ -1505,10 +1491,11 @@ select_task_rq_rt(struct task_struct *p, int cpu, int sd_flag, int flags,
 select_task_rq_rt(struct task_struct *p, int cpu, int sd_flag, int flags)
 #endif
 {
-	struct task_struct *curr;
+	struct task_struct *curr, *tgt_task;
 	struct rq *rq;
 	struct rq *this_cpu_rq;
 	bool sync = !!(flags & WF_SYNC);
+	bool may_not_preempt;
 	bool test;
 	int this_cpu;
 
@@ -1524,7 +1511,17 @@ select_task_rq_rt(struct task_struct *p, int cpu, int sd_flag, int flags)
 	this_cpu_rq = cpu_rq(this_cpu);
 
 	/*
-	 * If the current task on @p's runqueue is an RT task, then
+	 * If the current task on @p's runqueue is a softirq task,
+	 * it may run without preemption for a time that is
+	 * ill-suited for a waiting RT task. Therefore, try to
+	 * wake this RT task on another runqueue.
+	 *
+	 * Also, if the current task on @p's runqueue is an RT task, then
+	 * it may run without preemption for a time that is
+	 * ill-suited for a waiting RT task. Therefore, try to
+	 * wake this RT task on another runqueue.
+	 *
+	 * Also, if the current task on @p's runqueue is an RT task, then
 	 * try to see if we can wake this RT task up on another
 	 * runqueue. Otherwise simply start this RT task
 	 * on its current runqueue.
@@ -1545,12 +1542,11 @@ select_task_rq_rt(struct task_struct *p, int cpu, int sd_flag, int flags)
 	 * This test is optimistic, if we get it wrong the load-balancer
 	 * will have to sort it out.
 	 *
-	 * We use rt_task_fits_cpu() to evaluate if the CPU is busy with
-	 * potentially long-running softirq work, as well as take into
-	 * account the capacity of the CPU to ensure it fits the
-	 * requirement of the task - which is only important on
-	 * heterogeneous systems like big.LITTLE.
+	 * We take into account the capacity of the CPU to ensure it fits the
+	 * requirement of the task - which is only important on heterogeneous
+	 * systems like big.LITTLE.
 	 */
+	may_not_preempt = task_may_not_preempt(curr, cpu);
 	test = static_branch_unlikely(&sched_energy_present) ||
 	       (curr && unlikely(rt_task(curr)) &&
 	       (curr->nr_cpus_allowed < 2 || curr->prio <= p->prio));
@@ -1564,15 +1560,26 @@ select_task_rq_rt(struct task_struct *p, int cpu, int sd_flag, int flags)
 		goto out_unlock;
 	}
 
-	if (test || !rt_task_fits_cpu(p, cpu)) {
+	if (may_not_preempt || test || !rt_task_fits_capacity(p, cpu)) {
 		int target = find_lowest_rq(p);
 
 		/*
 		 * Bail out if we were forcing a migration to find a better
 		 * fitting CPU but our search failed.
 		 */
-		if (!test && target != -1 && !rt_task_fits_cpu(p, target))
+		if (!test && target != -1 && !rt_task_fits_capacity(p, target))
 			goto out_unlock;
+
+		/*
+		 * Check once for losing a race with the other core's irq
+		 * handler. This does not happen frequently, but it can avoid
+		 * delaying the execution of the RT task in those cases.
+		 */
+		if (target != -1) {
+			tgt_task = READ_ONCE(cpu_rq(target)->curr);
+			if (task_may_not_preempt(tgt_task, target))
+				target = find_lowest_rq(p);
+		}
 
 		/*
 		 * If cpu is non-preemptible, prefer remote cpu
@@ -1581,7 +1588,8 @@ select_task_rq_rt(struct task_struct *p, int cpu, int sd_flag, int flags)
 		 * destination CPU is not running a lower priority task.
 		 */
 		if (target != -1 &&
-		    p->prio < cpu_rq(target)->rt.highest_prio.curr)
+		    (may_not_preempt ||
+		     p->prio < cpu_rq(target)->rt.highest_prio.curr))
 			cpu = target;
 	}
 
@@ -1805,22 +1813,19 @@ static int find_lowest_rq(struct task_struct *task)
 		return -1; /* No other targets possible */
 
 	/*
-	 * If we're using the softirq optimization or if we are
-	 * on asym system, ensure we consider the softirq processing
-	 * or different capacities of the CPUs when searching for the
-	 * lowest_mask.
+	 * If we're on asym system ensure we consider the different capacities
+	 * of the CPUs when searching for the lowest_mask.
 	 */
 	if (static_branch_unlikely(&sched_asym_cpucapacity)) {
 
 		ret = cpupri_find_fitness(&task_rq(task)->rd->cpupri,
 					  task, lowest_mask,
-					  rt_task_fits_cpu);
+					  rt_task_fits_capacity);
 	} else {
 
 		ret = cpupri_find(&task_rq(task)->rd->cpupri,
 				  task, lowest_mask);
 	}
-
 
 	if (!ret)
 		return -1; /* No targets found */
@@ -2400,13 +2405,20 @@ void __init init_sched_rt_class(void)
 static void switched_to_rt(struct rq *rq, struct task_struct *p)
 {
 	/*
-	 * If we are already running, then there's nothing
-	 * that needs to be done. But if we are not running
-	 * we may need to preempt the current running task.
-	 * If that current running task is also an RT task
+	 * If we are running, update the avg_rt tracking, as the running time
+	 * will now on be accounted into the latter.
+	 */
+	if (task_current(rq, p)) {
+		update_rt_rq_load_avg(rq_clock_pelt(rq), rq, 0);
+		return;
+	}
+
+	/*
+	 * If we are not running we may need to preempt the current
+	 * running task. If that current running task is also an RT task
 	 * then see if we can move to another run queue.
 	 */
-	if (task_on_rq_queued(p) && rq->curr != p) {
+	if (task_on_rq_queued(p)) {
 #ifdef CONFIG_SMP
 		if (p->nr_cpus_allowed > 1 && rq->rt.overloaded)
 			rt_queue_push_tasks(rq);

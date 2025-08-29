@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/gpio.h>
@@ -142,17 +143,6 @@ static const char *const lpi_gpio_functions[] = {
 	[LPI_GPIO_FUNC_INDEX_FUNC5]	= LPI_GPIO_FUNC_FUNC5,
 };
 
-#define lpi_gpio_debug_output(m, c, fmt, ...)		\
-do {							\
-	if (m)						\
-		seq_printf(m, fmt, ##__VA_ARGS__);	\
-	else if (c)					\
-		pr_cont(fmt, ##__VA_ARGS__);		\
-	else						\
-		pr_info(fmt, ##__VA_ARGS__);		\
-} while (0)
-
-
 int lpi_pinctrl_runtime_suspend(struct device *dev);
 
 static int lpi_gpio_read(struct lpi_gpio_pad *pad, unsigned int addr)
@@ -272,12 +262,14 @@ static int lpi_gpio_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
 
 	pad = pctldev->desc->pins[pin].drv_data;
 
-	pad->function = function;
+	if (pad != NULL) {
+		pad->function = function;
 
-	val = lpi_gpio_read(pad, LPI_GPIO_REG_VAL_CTL);
-	val &= ~(LPI_GPIO_REG_FUNCTION_MASK);
-	val |= pad->function << LPI_GPIO_REG_FUNCTION_SHIFT;
-	lpi_gpio_write(pad, LPI_GPIO_REG_VAL_CTL, val);
+		val = lpi_gpio_read(pad, LPI_GPIO_REG_VAL_CTL);
+		val &= ~(LPI_GPIO_REG_FUNCTION_MASK);
+		val |= pad->function << LPI_GPIO_REG_FUNCTION_SHIFT;
+		lpi_gpio_write(pad, LPI_GPIO_REG_VAL_CTL, val);
+	}
 	return 0;
 }
 
@@ -611,10 +603,10 @@ static void lpi_gpio_dbg_show_one(struct seq_file *s,
 		 LPI_GPIO_REG_OUT_STRENGTH_SHIFT;
 	pull = (ctl_reg & LPI_GPIO_REG_PULL_MASK) >> LPI_GPIO_REG_PULL_SHIFT;
 
-	lpi_gpio_debug_output(s,1, " %-8s: %-3s %d",
+	seq_printf(s, " %-8s: %-3s %d",
 		   pindesc.name, is_out ? "out" : "in", func);
-	lpi_gpio_debug_output(s, 1," %dmA", lpi_regval_to_drive(drive));
-	lpi_gpio_debug_output(s,1, " %s", pulls[pull]);
+	seq_printf(s, " %dmA", lpi_regval_to_drive(drive));
+	seq_printf(s, " %s", pulls[pull]);
 }
 
 static void lpi_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
@@ -624,7 +616,7 @@ static void lpi_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 
 	for (i = 0; i < chip->ngpio; i++, gpio++) {
 		lpi_gpio_dbg_show_one(s, NULL, chip, i, gpio);
-		lpi_gpio_debug_output(s, 1, "\n");
+		seq_puts(s, "\n");
 	}
 }
 
