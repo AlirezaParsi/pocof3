@@ -121,8 +121,6 @@ jobs:
         git cherry-pick 210396a9118fb7e2de2b7f99bd2cf86050dfceb3
         git cherry-pick a34bbb74170e92093caefcbf838a379309e68c5d
         git cherry-pick f80b879d5b5e4b7a32af2fcf2bd403c5f2c8b8e1
-
-        git revert a6d0c19cb409e39975b2bd3a623802766b17554f
         
         echo "kernel-folder=$(pwd)" >> $GITHUB_OUTPUT
       working-directory: ${{ steps.workspace.outputs.workspace-folder }}
