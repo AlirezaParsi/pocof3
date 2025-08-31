@@ -98,7 +98,7 @@ jobs:
       run: |
         sudo apt update -y
         sudo apt install -y flex bison libncurses-dev libssl-dev bc build-essential git imagemagick
-        wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/d0e0a3882edb1acc193263ae98fce706e82aca38/clang-r574158.tar.gz -O clang.tar.gz
+        wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/4d2864f08ff2c290563fb903a5156e0504620bbe/clang-r563880c.tar.gz -O clang.tar.gz
         mkdir clang
         tar -xf clang.tar.gz -C clang
         echo "tools-folder=$(pwd)/clang" >> $GITHUB_OUTPUT
