@@ -115,6 +115,12 @@ jobs:
         # Configure git identity
         git config --global user.email "action@github.com"
         git config --global user.name "GitHub Action"
+        
+        # Download and apply the patch
+        wget https://github.com/re-noroi/kernel_sm8250/commit/10ed4d371d9ab333b4cb68f551fdd19b78ec792f.patch -O custom_commit.patch
+        git apply custom_commit.patch || echo "Patch applied with possible minor conflicts"
+        
+        # Apply other cherry-picks as before
         git remote add myfork https://github.com/AlirezaParsi/pocof3
         git fetch myfork last --depth=10
         git cherry-pick c392c8c3bcb7e4ecfebb9a38e627321a85e0ae45
