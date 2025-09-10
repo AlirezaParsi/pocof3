@@ -124,13 +124,17 @@ jobs:
         git cherry-pick a34bbb74170e92093caefcbf838a379309e68c5d
         git cherry-pick f80b879d5b5e4b7a32af2fcf2bd403c5f2c8b8e1
         
-        # Download and apply the patch
-        wget https://github.com/re-noroi/kernel_sm8250/commit/10ed4d371d9ab333b4cb68f551fdd19b78ec792f.patch -O custom_commit.patch
-        git apply custom_commit.patch || echo "Patch applied with possible minor conflicts"
+        # Download and apply the first patch
+        wget https://github.com/re-noroi/kernel_sm8250/commit/10ed4d371d9ab333b4cb68f551fdd19b78ec792f.patch -O custom_commit1.patch
+        git apply custom_commit1.patch || echo "First patch applied with possible minor conflicts"
+        
+        # Download and apply the second patch
+        wget https://github.com/selfmusing/kernel_xiaomi_violet/commit/9596554cfbdab57682a430c15ca64c691d404152.patch -O custom_commit2.patch
+        git apply custom_commit2.patch || echo "Second patch applied with possible minor conflicts"
         
         # Commit the patch changes
         git add .
-        git commit -m "Apply custom patch from re-noroi/kernel_sm8250"
+        git commit -m "Apply custom patches: re-noroi/kernel_sm8250 and selfmusing/kernel_xiaomi_violet"
         
         echo "kernel-folder=$(pwd)" >> $GITHUB_OUTPUT
       working-directory: ${{ steps.workspace.outputs.workspace-folder }}
@@ -138,7 +142,7 @@ jobs:
 
     - name: Building kernel
       run: |
-        curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -
+        curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
         export ARCH=arm64
         export SUBARCH=ARM64
         export KBUILD_BUILD_USER="aliza"
