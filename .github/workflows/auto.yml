@@ -123,6 +123,7 @@ jobs:
         git cherry-pick 210396a9118fb7e2de2b7f99bd2cf86050dfceb3
         git cherry-pick a34bbb74170e92093caefcbf838a379309e68c5d
         git cherry-pick f80b879d5b5e4b7a32af2fcf2bd403c5f2c8b8e1
+        git chrrry-pick c786db47bfb282702935dc109722e13b4d000da0
         
         # Download and apply the first patch
         wget https://github.com/re-noroi/kernel_sm8250/commit/10ed4d371d9ab333b4cb68f551fdd19b78ec792f.patch -O custom_commit1.patch
