@@ -113,8 +113,7 @@ jobs:
 
     - name: Building kernel
       run: |
-        curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
-        export ARCH=arm64
+        curl -LSs "https://raw.githubusercontent.com/rsuntk/KernelSU/main/kernel/setup.sh" | bash -s main
         export SUBARCH=ARM64
         export KBUILD_BUILD_USER="aliza"
         export KBUILD_BUILD_HOST="Github"
