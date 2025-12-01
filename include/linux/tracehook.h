@@ -57,14 +57,14 @@ struct linux_binprm;
 /*
  * ptrace report for syscall entry and exit looks identical.
  */
-static inline int ptrace_report_syscall(struct pt_regs *regs, unsigned long message)
+static inline int ptrace_report_syscall(struct pt_regs *regs)
 {
 	int ptrace = current->ptrace;
 
 	if (!(ptrace & PT_PTRACED))
 		return 0;
 
-	ptrace_notify(SIGTRAP | ((ptrace & PT_TRACESYSGOOD) ? 0x80 : 0), message);
+	ptrace_notify(SIGTRAP | ((ptrace & PT_TRACESYSGOOD) ? 0x80 : 0));
 
 	/*
 	 * this isn't the same as continuing with a signal, but it will do
@@ -101,7 +101,7 @@ static inline int ptrace_report_syscall(struct pt_regs *regs, unsigned long mess
 static inline __must_check int tracehook_report_syscall_entry(
 	struct pt_regs *regs)
 {
-	return ptrace_report_syscall(regs, PTRACE_EVENTMSG_SYSCALL_ENTRY);
+	return ptrace_report_syscall(regs);
 }
 
 /**
@@ -131,7 +131,7 @@ static inline void tracehook_report_syscall_exit(struct pt_regs *regs, int step)
 		return;
 	}
 
-	ptrace_report_syscall(regs, PTRACE_EVENTMSG_SYSCALL_EXIT);
+	ptrace_report_syscall(regs);
 }
 
 /**
@@ -148,7 +148,7 @@ static inline void tracehook_report_syscall_exit(struct pt_regs *regs, int step)
 static inline void tracehook_signal_handler(int stepping)
 {
 	if (stepping)
-		ptrace_notify(SIGTRAP, 0);
+		ptrace_notify(SIGTRAP);
 }
 
 /**
