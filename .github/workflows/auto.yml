@@ -131,6 +131,9 @@ jobs:
 
         wget https://github.com/sidex15/android_kernel_lge_sm8150/commit/fcc59dc3310d3a1511d02dc3ac6d1e113517ece1.patch -O custom_commit3.patch
         git apply custom_commit3.patch || echo "First patch applied with possible minor conflicts"
+
+        wget https://github.com/KOWX712/Realking_kernel_sm8250/commit/9ae5f9cfd40bbeba1303f8e33f3ba4f89c1a97b1.patch -O test.patch
+        git apply test.patch || echo "First patch applied with possible minor conflicts"
         
         # Download and apply the second patch
         wget https://github.com/selfmusing/kernel_xiaomi_violet/commit/9596554cfbdab57682a430c15ca64c691d404152.patch -O custom_commit2.patch
