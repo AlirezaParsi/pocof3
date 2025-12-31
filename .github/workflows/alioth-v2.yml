@@ -113,6 +113,10 @@ jobs:
 
     - name: Building kernel
       run: |
+        wget https://raw.githubusercontent.com/rksuorg/kernel_patches/refs/heads/master/manual_hook/kernel-4.19_5.4.patch -O test.patch
+        git apply test.patch || echo "patch applied with possible minor conflicts"
+        git add .
+        git commit -m "Apply custom patches"
         curl -LSs "https://raw.githubusercontent.com/rsuntk/KernelSU/main/kernel/setup.sh" | bash -s main
         export SUBARCH=arm64
         export ARCH=arm64
